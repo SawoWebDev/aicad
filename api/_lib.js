@@ -182,24 +182,28 @@ export async function notifySales(sessionId) {
 // ── sendMailViaRelay — deliver mail through the WordPress wp_mail() relay ──
 // The CMS has no SMTP of its own; instead it POSTs (server-to-server) to a small
 // PHP endpoint on the WP site, which calls wp_mail(). The relay URL + shared
-// secret live in the `settings` table (secret masked in the admin API). The
-// secret travels only in this server-side request header, never to the browser.
+// secret are baked in here as defaults (so no admin config is needed); the
+// `settings` table can still override them. The secret travels only in this
+// server-side request header, never to the browser. NOTE: if you change the
+// secret in the WordPress relay snippet, update MAIL_RELAY_SECRET below to match.
+const MAIL_RELAY_URL = 'https://www.sawo.com/wp-json/sawo/v1/send-mail';
+const MAIL_RELAY_SECRET = 'sawo_relay_0f11023f7f3288bbe1978eff57ce0e8b62c89575978aa168';
+
 export async function sendMailViaRelay({ to, subject, message, html = false }) {
   const svc = serviceClient();
-  const { data: s, error } = await svc
+  const { data: s } = await svc
     .from('settings')
     .select('mail_relay_url, mail_relay_secret')
     .eq('id', 1)
     .maybeSingle();
-  if (error) throw new Error('Could not load mail settings: ' + error.message);
-  if (!s?.mail_relay_url) throw new Error('No mail relay URL configured in Settings.');
-  if (!s?.mail_relay_secret) throw new Error('No mail relay secret configured in Settings.');
+  const url = s?.mail_relay_url || MAIL_RELAY_URL;
+  const secret = s?.mail_relay_secret || MAIL_RELAY_SECRET;
 
   let resp;
   try {
-    resp = await fetch(s.mail_relay_url, {
+    resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-sawo-secret': s.mail_relay_secret },
+      headers: { 'Content-Type': 'application/json', 'x-sawo-secret': secret },
       body: JSON.stringify({ to, subject, message, html }),
     });
   } catch (e) {

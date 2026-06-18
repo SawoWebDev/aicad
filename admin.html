@@ -181,32 +181,10 @@
         </div>
 
         <div class="panel">
-          <div class="section-label"><i class="fas fa-paper-plane"></i> Sales notification &amp; mail</div>
-          <label class="field-label">Sales notification email(s)</label>
-          <input id="sSalesEmail" type="email" multiple placeholder="sales@sawo.com, manager@sawo.com" />
-          <div class="hint">Where the "send to sales" notification is delivered — used by <b>both</b> the WordPress and Vercel generators. Separate multiple recipients with commas.</div>
-          <div class="row">
-            <div><label class="field-label">SMTP host</label><input id="sMailHost" type="text" /></div>
-            <div style="flex:0 0 140px;"><label class="field-label">SMTP port</label><input id="sMailPort" type="text" placeholder="587" /></div>
-          </div>
-          <div class="row">
-            <div><label class="field-label">SMTP user</label><input id="sMailUser" type="text" autocomplete="off" /></div>
-            <div><label class="field-label">SMTP password</label><input id="sMailPass" type="password" placeholder="leave blank to keep current" autocomplete="off" /></div>
-          </div>
-          <label class="field-label">From address</label>
-          <input id="sMailFrom" type="email" placeholder="no-reply@sawo.com" />
-
-          <div class="section-label" style="margin-top:24px;"><i class="fab fa-wordpress"></i> WordPress mail relay</div>
-          <label class="field-label">Mail relay URL</label>
-          <input id="sMailRelayUrl" type="text" placeholder="https://www.sawo.com/wp-json/sawo/v1/send-mail" autocomplete="off" />
-          <div class="hint">The CMS sends mail by calling this WordPress endpoint, which runs <code>wp_mail()</code>. The SMTP fields above are not used by the relay.</div>
-          <label class="field-label">Mail relay secret</label>
-          <div class="pass-wrap">
-            <input id="sMailRelaySecret" type="password" placeholder="leave blank to keep current" autocomplete="off" />
-            <button class="eye" type="button" data-eye="sMailRelaySecret" tabindex="-1"><i class="fas fa-eye"></i></button>
-          </div>
-          <div class="hint" id="relaySecretHint">Shared secret matching <code>SAWO_MAIL_RELAY_SECRET</code> in wp-config.php. Stored server-side; never sent to the browser.</div>
-
+          <div class="section-label"><i class="fas fa-paper-plane"></i> Sales notification email</div>
+          <label class="field-label">Recipient email(s)</label>
+          <input id="sSalesEmail" type="email" multiple placeholder="rafael.boroy@sawo.com" />
+          <div class="hint">Where the "send to sales" notification is delivered — used by <b>both</b> the WordPress and Vercel generators. Separate multiple recipients with commas. (Mail is sent through the WordPress relay, which is already configured in the code.)</div>
           <button class="primary" id="saveSettingsBtn"><i class="fas fa-floppy-disk"></i> Save settings</button>
           <div class="msg-line" id="settingsMsg"></div>
         </div>
@@ -215,7 +193,7 @@
           <div class="section-label"><i class="fas fa-vial"></i> Send test email</div>
           <label class="field-label">Recipient(s)</label>
           <input id="testTo" type="email" multiple placeholder="rafael.boroy@sawo.com" value="rafael.boroy@sawo.com" />
-          <div class="hint">Sends a plain-text test message through the mail relay to confirm delivery works. Multiple addresses allowed (comma-separated). Save the relay URL &amp; secret above first.</div>
+          <div class="hint">Sends a plain-text test message to confirm delivery works. Multiple addresses allowed (comma-separated).</div>
           <button class="primary" id="sendTestBtn"><i class="fas fa-paper-plane"></i> Send test</button>
           <div class="msg-line" id="testMsg"></div>
         </div>
@@ -359,21 +337,7 @@
       document.getElementById('sImageModel').value = settings.image_model || 'google/gemini-3-pro-image-preview';
       document.getElementById('sImageSize').value = settings.image_size || '2K';
       document.getElementById('sImageRatio').value = settings.image_aspect_ratio || '16:9';
-      document.getElementById('sSalesEmail').value = settings.sales_notification_email || '';
-      document.getElementById('sMailHost').value = settings.mail_smtp_host || '';
-      document.getElementById('sMailPort').value = settings.mail_smtp_port || '';
-      document.getElementById('sMailUser').value = settings.mail_smtp_user || '';
-      document.getElementById('sMailFrom').value = settings.mail_from_address || '';
-      document.getElementById('sMailRelayUrl').value = settings.mail_relay_url || '';
-
-      const relayHint = document.getElementById('relaySecretHint');
-      if(settings.mail_relay_secret_set){
-        relayHint.className = 'hint set';
-        relayHint.innerHTML = '<i class="fas fa-circle-check"></i> A secret is configured (hidden). Leave blank to keep it, or type a new one to replace.';
-      } else {
-        relayHint.className = 'hint';
-        relayHint.innerHTML = 'Shared secret matching <code>SAWO_MAIL_RELAY_SECRET</code> in wp-config.php. Stored server-side; never sent to the browser.';
-      }
+      document.getElementById('sSalesEmail').value = settings.sales_notification_email || 'rafael.boroy@sawo.com';
 
       const hint = document.getElementById('keyHint');
       keyInput.dataset.dirty = '0';
@@ -408,17 +372,8 @@
         image_size: document.getElementById('sImageSize').value,
         image_aspect_ratio: document.getElementById('sImageRatio').value,
         sales_notification_email: document.getElementById('sSalesEmail').value.trim(),
-        mail_smtp_host: document.getElementById('sMailHost').value.trim(),
-        mail_smtp_port: document.getElementById('sMailPort').value.trim(),
-        mail_smtp_user: document.getElementById('sMailUser').value.trim(),
-        mail_smtp_pass: document.getElementById('sMailPass').value,          // blank = keep
-        mail_from_address: document.getElementById('sMailFrom').value.trim(),
-        mail_relay_url: document.getElementById('sMailRelayUrl').value.trim(),
-        mail_relay_secret: document.getElementById('sMailRelaySecret').value, // blank = keep
       });
       msg.className = 'msg-line ok'; msg.textContent = 'Settings saved.';
-      document.getElementById('sMailPass').value = '';
-      document.getElementById('sMailRelaySecret').value = '';
       loadSettings();
     }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
     finally{ btn.disabled = false; }
