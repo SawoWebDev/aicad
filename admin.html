@@ -182,9 +182,9 @@
 
         <div class="panel">
           <div class="section-label"><i class="fas fa-paper-plane"></i> Sales notification &amp; mail</div>
-          <label class="field-label">Sales notification email</label>
-          <input id="sSalesEmail" type="email" placeholder="sales@sawo.com" />
-          <div class="hint">Recipient of the (future) "send to sales" notification. Mail delivery itself is not active yet — these fields are stored for later.</div>
+          <label class="field-label">Sales notification email(s)</label>
+          <input id="sSalesEmail" type="email" multiple placeholder="sales@sawo.com, manager@sawo.com" />
+          <div class="hint">Where the "send to sales" notification is delivered — used by <b>both</b> the WordPress and Vercel generators. Separate multiple recipients with commas.</div>
           <div class="row">
             <div><label class="field-label">SMTP host</label><input id="sMailHost" type="text" /></div>
             <div style="flex:0 0 140px;"><label class="field-label">SMTP port</label><input id="sMailPort" type="text" placeholder="587" /></div>
@@ -213,9 +213,9 @@
 
         <div class="panel">
           <div class="section-label"><i class="fas fa-vial"></i> Send test email</div>
-          <label class="field-label">Recipient</label>
-          <input id="testTo" type="email" placeholder="rafael.boroy@sawo.com" value="rafael.boroy@sawo.com" />
-          <div class="hint">Sends a plain-text test message through the mail relay to confirm delivery works. Save the relay URL &amp; secret above first.</div>
+          <label class="field-label">Recipient(s)</label>
+          <input id="testTo" type="email" multiple placeholder="rafael.boroy@sawo.com" value="rafael.boroy@sawo.com" />
+          <div class="hint">Sends a plain-text test message through the mail relay to confirm delivery works. Multiple addresses allowed (comma-separated). Save the relay URL &amp; secret above first.</div>
           <button class="primary" id="sendTestBtn"><i class="fas fa-paper-plane"></i> Send test</button>
           <div class="msg-line" id="testMsg"></div>
         </div>

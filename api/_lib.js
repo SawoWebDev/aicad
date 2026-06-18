@@ -143,11 +143,11 @@ export async function requireRole(req, res, role) {
   return session;
 }
 
-// ── notifySales — STUB ──────────────────────────────────────────────────
-// Resolves the recipient + builds the permalink + assembles the message, then
-// records that a notification was requested. Real delivery is intentionally NOT
-// implemented this pass; a provider can be wired in here later without changing
-// any caller.
+// ── notifySales — delivers the "send to sales" notification via the relay ──
+// Recipient is the single `sales_notification_email` setting, which MAY hold
+// several comma-separated addresses (the relay splits + validates them). Never
+// throws: if mail isn't configured or the relay fails, it logs and returns
+// sent:false so the sales handoff still completes for the client.
 export async function notifySales(sessionId) {
   const svc = serviceClient();
   const { data: settings } = await svc
@@ -165,9 +165,18 @@ export async function notifySales(sessionId) {
 
   const notification = { to: recipient, subject, body, permalink, sessionId };
 
-  // STUB: no email sent. Log so it's observable; return queued so callers proceed.
-  console.log('[notifySales] notification requested (STUB — not sent):', JSON.stringify(notification));
-  return { queued: true, sent: false, ...notification };
+  if (!recipient) {
+    console.log('[notifySales] no sales_notification_email configured — not sent.');
+    return { queued: false, sent: false, ...notification };
+  }
+
+  try {
+    await sendMailViaRelay({ to: recipient, subject, message: body });
+    return { queued: true, sent: true, ...notification };
+  } catch (e) {
+    console.error('[notifySales] send failed:', e?.message || e);
+    return { queued: true, sent: false, error: e?.message || String(e), ...notification };
+  }
 }
 
 // ── sendMailViaRelay — deliver mail through the WordPress wp_mail() relay ──
