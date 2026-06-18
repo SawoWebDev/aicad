@@ -82,7 +82,7 @@
   .mini:hover{ border-color:var(--brown-mid); }
   /* ── Row actions dropdown ── */
   .dropdown{ position:relative; display:inline-block; }
-  .dd-toggle{ display:inline-flex; align-items:center; gap:6px; }
+  .dd-toggle{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; margin-right:0; font-size:0.85rem; }
   .dd-menu{ position:absolute; right:0; top:calc(100% + 4px); min-width:172px; background:#fff; border:1px solid var(--line); border-radius:9px; box-shadow:0 10px 28px rgba(139,94,60,0.18); z-index:60; overflow:hidden; padding:4px; }
   .dd-menu button{ display:flex; align-items:center; gap:9px; width:100%; text-align:left; border:none; background:transparent; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.72rem; padding:8px 11px; border-radius:6px; cursor:pointer; }
   .dd-menu button i{ width:14px; text-align:center; color:var(--brown-mid); }
@@ -297,7 +297,7 @@
           '<td style="color:var(--text-dim);">' + esc(fmt(u.created_at)) + '</td>' +
           '<td>' +
             '<div class="dropdown">' +
-              '<button class="mini dd-toggle"><i class="fas fa-ellipsis"></i> Actions</button>' +
+              '<button class="mini dd-toggle" title="Actions"><i class="fas fa-ellipsis-vertical"></i></button>' +
               '<div class="dd-menu hidden">' +
                 (u.active !== false ? '<button class="magic-btn" data-id="' + u.id + '" data-name="' + esc(u.username || u.email || '') + '"><i class="fas fa-link"></i> Copy magic link</button>' : '') +
                 '<button data-act="role" data-id="' + u.id + '" data-val="' + toggleRole + '"><i class="fas fa-user-shield"></i> Make ' + toggleRole + '</button>' +
