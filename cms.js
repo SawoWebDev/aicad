@@ -38,5 +38,32 @@ window.CMS = (function(){
     try{ await fetch('/api/auth?action=logout', { method:'POST' }); }catch(e){}
     location.replace('/login');
   }
-  return { esc, fmt, session, get, send, logout };
+  function toast(message, type){
+    type = type || 'ok';
+    var ctr = document.getElementById('cms-toast-ctr');
+    if(!ctr){
+      ctr = document.createElement('div'); ctr.id = 'cms-toast-ctr';
+      var s = ctr.style;
+      s.position='fixed'; s.top='18px'; s.right='18px'; s.zIndex='99999';
+      s.display='flex'; s.flexDirection='column'; s.gap='8px'; s.pointerEvents='none';
+      document.body.appendChild(ctr);
+      var st = document.createElement('style');
+      st.textContent =
+        '#cms-toast-ctr .cms-toast{pointer-events:auto;font-family:Montserrat,sans-serif;font-size:.82rem;font-weight:600;padding:11px 18px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);opacity:0;transform:translateX(30px);transition:opacity .3s,transform .3s;}'+
+        '#cms-toast-ctr .cms-toast.show{opacity:1;transform:translateX(0);}'+
+        '#cms-toast-ctr .cms-toast.ok{background:#fff;color:#4A9D4A;border-left:4px solid #4A9D4A;}'+
+        '#cms-toast-ctr .cms-toast.err{background:#fff;color:#C9302C;border-left:4px solid #C9302C;}';
+      document.head.appendChild(st);
+    }
+    var t = document.createElement('div');
+    t.className = 'cms-toast ' + type;
+    t.textContent = message;
+    ctr.appendChild(t);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+    setTimeout(function(){
+      t.classList.remove('show');
+      setTimeout(function(){ t.remove(); }, 350);
+    }, 2500);
+  }
+  return { esc, fmt, session, get, send, logout, toast };
 })();

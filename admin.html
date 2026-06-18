@@ -152,7 +152,7 @@
             <input id="sKey" type="password" autocomplete="off" />
             <button class="eye" type="button" data-eye="sKey" tabindex="-1"><i class="fas fa-eye"></i></button>
           </div>
-          <div class="hint" id="keyHint">Stored server-side only; used for chat + image generation. Never sent to the browser.</div>
+          <div class="hint" id="keyHint">Used for chat + image generation.</div>
 
           <label class="field-label">Chat model</label>
           <select id="sChatModel">
@@ -185,7 +185,10 @@
           <label class="field-label">Recipient email(s)</label>
           <input id="sSalesEmail" type="email" multiple placeholder="rafael.boroy@sawo.com" />
           <div class="hint">Where the "send to sales" notification is delivered — used by <b>both</b> the WordPress and Vercel generators. Separate multiple recipients with commas. (Mail is sent through the WordPress relay, which is already configured in the code.)</div>
-          <button class="primary" id="saveSettingsBtn"><i class="fas fa-floppy-disk"></i> Save settings</button>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:20px;">
+            <button class="primary" id="saveSettingsBtn" style="margin-top:0;"><i class="fas fa-floppy-disk"></i> Save settings</button>
+            <span id="dirtyBadge" class="hidden" style="font-size:0.72rem;font-weight:700;color:#C9302C;background:rgba(201,48,44,0.1);padding:4px 10px;border-radius:8px;text-transform:uppercase;letter-spacing:0.04em;">Unsaved changes</span>
+          </div>
           <div class="msg-line" id="settingsMsg"></div>
         </div>
 
@@ -295,7 +298,7 @@
     const body = { id: ds.id };
     if(ds.act === 'role') body.role = ds.val;
     if(ds.act === 'active') body.active = ds.val === 'true';
-    try{ await CMS.send('PATCH', '/api/admin?resource=users', body); loadUsers(); }
+    try{ await CMS.send('PATCH', '/api/admin?resource=users', body); CMS.toast('User updated'); loadUsers(); }
     catch(e){ alert(e.message); }
   }
 
@@ -314,6 +317,7 @@
         role: document.getElementById('nuRole').value,
       });
       msg.className = 'msg-line ok'; msg.textContent = 'User created.';
+      CMS.toast('User created');
       document.getElementById('nuUser').value = '';
       document.getElementById('nuEmail').value = '';
       document.getElementById('nuPass').value = '';
@@ -324,11 +328,27 @@
     finally{ btn.disabled = false; }
   });
 
-  // ── Settings: API key masked-but-present handling ──
+  // ── Settings: real key display (revealable) + dirty tracking ──
   const keyInput = document.getElementById('sKey');
-  const KEY_SENTINEL = '••••••••••••••••';
-  // If the admin edits the field, it becomes "dirty" and we save the typed value.
-  keyInput.addEventListener('input', () => { keyInput.dataset.dirty = '1'; });
+  const dirtyBadge = document.getElementById('dirtyBadge');
+  let dirty = false;
+  let loadedKeyValue = '';
+
+  function markDirty(){
+    if(!dirty){ dirty = true; dirtyBadge.classList.remove('hidden'); }
+  }
+  function clearDirty(){
+    dirty = false; dirtyBadge.classList.add('hidden');
+  }
+  // Track changes on all settings fields
+  ['sKey','sChatModel','sImageModel','sImageSize','sImageRatio','sSalesEmail'].forEach(function(id){
+    var el = document.getElementById(id);
+    el.addEventListener('input', markDirty);
+    el.addEventListener('change', markDirty);
+  });
+  window.addEventListener('beforeunload', function(e){
+    if(dirty){ e.preventDefault(); e.returnValue = ''; }
+  });
 
   async function loadSettings(){
     try{
@@ -340,19 +360,16 @@
       document.getElementById('sSalesEmail').value = settings.sales_notification_email || 'rafael.boroy@sawo.com';
 
       const hint = document.getElementById('keyHint');
-      keyInput.dataset.dirty = '0';
-      if(settings.openrouter_api_key_set){
-        // Show a masked placeholder so it reads as "a key is attached" without
-        // ever exposing the real key. Untouched = keep existing on save.
-        keyInput.value = KEY_SENTINEL;
+      loadedKeyValue = settings.openrouter_api_key || '';
+      keyInput.value = loadedKeyValue;
+      if(loadedKeyValue){
         hint.className = 'hint set';
-        hint.innerHTML = '<i class="fas fa-circle-check"></i> A key is configured (hidden). Leave as-is to keep it, or clear it and type a new key to replace.';
+        hint.innerHTML = '<i class="fas fa-circle-check"></i> Key is configured. Use the eye icon to reveal it.';
       } else {
-        keyInput.value = '';
-        keyInput.type = 'password';
         hint.className = 'hint';
-        hint.textContent = 'No key set yet — paste your OpenRouter key. Stored server-side only, never sent to the browser.';
+        hint.textContent = 'No key set yet — paste your OpenRouter key.';
       }
+      clearDirty();
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
       const msg = document.getElementById('settingsMsg'); msg.className = 'msg-line err'; msg.textContent = e.message;
@@ -362,18 +379,20 @@
   document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
     const msg = document.getElementById('settingsMsg'); msg.className = 'msg-line'; msg.textContent = '';
     const btn = document.getElementById('saveSettingsBtn'); btn.disabled = true;
-    // Only send a new key if the admin actually typed one; otherwise blank = keep.
-    const keyVal = keyInput.dataset.dirty === '1' ? keyInput.value : '';
+    const currentKey = keyInput.value;
+    const keyChanged = currentKey !== loadedKeyValue;
     try{
       await CMS.send('PUT', '/api/admin?resource=settings', {
-        openrouter_api_key: keyVal,                                          // blank = keep
+        openrouter_api_key: keyChanged ? currentKey : '',
         chat_model: document.getElementById('sChatModel').value,
         image_model: document.getElementById('sImageModel').value,
         image_size: document.getElementById('sImageSize').value,
         image_aspect_ratio: document.getElementById('sImageRatio').value,
         sales_notification_email: document.getElementById('sSalesEmail').value.trim(),
       });
-      msg.className = 'msg-line ok'; msg.textContent = 'Settings saved.';
+      CMS.toast('Settings saved');
+      if(keyChanged) CMS.toast('OpenRouter API key updated');
+      clearDirty();
       loadSettings();
     }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
     finally{ btn.disabled = false; }

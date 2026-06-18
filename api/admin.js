@@ -10,6 +10,7 @@
 import { serviceClient, requireRole, readJsonBody, sendMailViaRelay } from './_lib.js';
 
 const SECRET_FIELDS = ['openrouter_api_key', 'mail_smtp_pass', 'mail_relay_secret'];
+const GET_MASK_FIELDS = ['mail_smtp_pass', 'mail_relay_secret'];
 const SETTING_FIELDS = [
   'openrouter_api_key', 'chat_model', 'image_model', 'image_size', 'image_aspect_ratio',
   'sales_notification_email', 'mail_smtp_host', 'mail_smtp_port', 'mail_smtp_user',
@@ -92,8 +93,7 @@ export default async function handler(req, res) {
         const { data, error } = await svc.from('settings').select('*').eq('id', 1).maybeSingle();
         if (error) return res.status(500).json({ error: error.message });
         const out = { ...(data || {}) };
-        // Mask secrets: never return their values; expose only whether they're set.
-        for (const f of SECRET_FIELDS) {
+        for (const f of GET_MASK_FIELDS) {
           out[f + '_set'] = !!out[f];
           out[f] = '';
         }

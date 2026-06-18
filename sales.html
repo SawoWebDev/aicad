@@ -46,9 +46,8 @@
     transition:all 0.25s ease;
   }
   .btn:hover{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
-  #app{ display:grid; grid-template-columns:380px 1fr; flex:1; min-height:0; }
-  .left,.right{ display:flex; flex-direction:column; min-height:0; }
-  .left{ background:var(--panel); border-right:1px solid var(--line); }
+  #app{ display:grid; grid-template-columns:380px 1fr; flex:1; min-height:0; padding:16px; gap:16px; background:var(--bg); }
+  .left,.right{ display:flex; flex-direction:column; min-height:0; background:var(--panel); border-radius:14px; box-shadow:0 10px 30px rgba(139,94,60,0.06); border:1px solid var(--line); overflow:hidden; }
   .list-head{ padding:12px 14px; border-bottom:1px solid var(--line); flex-shrink:0; }
   #search{
     width:100%; border:1.5px solid var(--line); border-radius:8px; background:#fff; color:var(--black);
@@ -71,11 +70,11 @@
   .badge.sales{ background:rgba(139,94,60,0.16); color:var(--brown-deep); }
   .si-snippet{ font-size:0.78rem; color:var(--black); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; }
   .detail-head{ padding:14px 20px; border-bottom:1px solid var(--line); flex-shrink:0; display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; }
-  .dh-title{ font-size:0.95rem; font-weight:700; color:var(--brown-deep); }
+  .dh-title{ font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); }
   .meta{ font-size:0.72rem; color:var(--text-dim); }
   .meta b{ color:var(--black); font-weight:600; }
   .copy-link{ margin-left:auto; }
-  #detailBody{ flex:1; overflow-y:auto; min-height:0; padding:20px; }
+  #detailBody{ flex:1; overflow-y:auto; min-height:0; padding:20px; background:var(--bg); }
   #detailBody::-webkit-scrollbar{ width:8px; }
   #detailBody::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
   .transcript{ display:flex; flex-direction:column; gap:12px; max-width:820px; margin:0 auto; }
@@ -99,7 +98,7 @@
   .placeholder p{ font-size:0.85rem; margin:0; max-width:420px; }
   .placeholder.error h3{ color:#C9302C; }
   .placeholder pre{ margin-top:14px; font-size:0.72rem; background:#20242a; color:#e8dfd3; padding:12px 16px; border-radius:8px; max-width:560px; white-space:pre-wrap; text-align:left; }
-  @media (max-width:820px){ #app{ grid-template-columns:1fr; grid-template-rows:240px 1fr; } .left{ border-right:none; border-bottom:1px solid var(--line); } }
+  @media (max-width:820px){ #app{ grid-template-columns:1fr; grid-template-rows:240px 1fr; } }
 </style>
 </head>
 <body>
