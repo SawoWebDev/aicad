@@ -5,14 +5,15 @@
 //                       PATCH  {id, role?, active?}  -> edit role / deactivate
 //   ?resource=settings  GET    -> settings (secrets masked)
 //                       PUT    {…fields}             -> update settings
+//   ?resource=test-email POST  {to}                 -> send a test email via the WP relay
 // ─────────────────────────────────────────────────────────────────────────
-import { serviceClient, requireRole, readJsonBody } from './_lib.js';
+import { serviceClient, requireRole, readJsonBody, sendMailViaRelay } from './_lib.js';
 
-const SECRET_FIELDS = ['openrouter_api_key', 'mail_smtp_pass'];
+const SECRET_FIELDS = ['openrouter_api_key', 'mail_smtp_pass', 'mail_relay_secret'];
 const SETTING_FIELDS = [
   'openrouter_api_key', 'chat_model', 'image_model', 'image_size', 'image_aspect_ratio',
   'sales_notification_email', 'mail_smtp_host', 'mail_smtp_port', 'mail_smtp_user',
-  'mail_smtp_pass', 'mail_from_address',
+  'mail_smtp_pass', 'mail_from_address', 'mail_relay_url', 'mail_relay_secret',
 ];
 
 export default async function handler(req, res) {
@@ -116,6 +117,23 @@ export default async function handler(req, res) {
       }
 
       return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // ── TEST EMAIL ──
+    if (resource === 'test-email') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { to } = await readJsonBody(req);
+      if (!to) return res.status(400).json({ error: 'Recipient email is required.' });
+      try {
+        await sendMailViaRelay({
+          to,
+          subject: 'SAWO CAD CMS — test email',
+          message: 'This is a test email from the SAWO CAD CMS. If you received this, the WordPress mail relay is working.',
+        });
+        return res.status(200).json({ ok: true });
+      } catch (e) {
+        return res.status(502).json({ error: e?.message || 'Could not send test email.' });
+      }
     }
 
     return res.status(400).json({ error: 'Unknown resource' });

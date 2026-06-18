@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#A67853; --brown-light:#C4A574;
+    --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#AF8564; --brown-light:#AF8564;
     --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
   }
   *{ box-sizing:border-box; }
@@ -34,7 +34,7 @@
     padding:6px 13px; border:1px solid var(--line); border-radius:20px;
   }
   .btn{
-    border:2px solid var(--brown-mid); border-radius:8px; background:transparent; color:var(--brown-deep);
+    border:2px solid var(--brown-mid); border-radius:9px; background:transparent; color:var(--brown-deep);
     font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.74rem; letter-spacing:0.04em;
     text-transform:uppercase; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
     transition:all 0.25s ease;
@@ -49,9 +49,11 @@
   .hint{ font-size:0.74rem; color:var(--text-dim); margin-top:6px; line-height:1.5; }
   .hint.set{ color:#4A9D4A; font-weight:600; }
   input,select{
-    width:100%; border:1.5px solid var(--line); border-radius:8px; background:#fff; color:var(--black);
-    font-family:'Montserrat',sans-serif; font-size:0.9rem; padding:10px 12px; outline:none; transition:border-color 0.2s;
+    width:100%; border:1.5px solid var(--line); border-radius:9px; background:#fff; color:var(--black);
+    font-family:'Montserrat',sans-serif; font-size:0.9rem;
+    height:44px; padding:11px 14px; line-height:20px; outline:none; transition:border-color 0.2s;
   }
+  select{ padding:0 14px; }
   input:focus,select:focus{ border-color:var(--brown-mid); }
   .pass-wrap{ position:relative; } .pass-wrap input{ padding-right:44px; }
   .eye{ position:absolute; right:6px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--text-dim); cursor:pointer; padding:6px 8px; font-size:0.9rem; }
@@ -59,7 +61,7 @@
   .row{ display:flex; gap:14px; flex-wrap:wrap; }
   .row > div{ flex:1; min-width:160px; }
   .primary{
-    margin-top:20px; border:2px solid transparent; border-radius:8px;
+    margin-top:20px; border:2px solid transparent; border-radius:9px;
     background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
     font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.82rem; letter-spacing:0.05em;
     text-transform:uppercase; padding:11px 20px; cursor:pointer; display:inline-flex; align-items:center; gap:9px; transition:all 0.3s ease;
@@ -193,8 +195,29 @@
           </div>
           <label class="field-label">From address</label>
           <input id="sMailFrom" type="email" placeholder="no-reply@sawo.com" />
+
+          <div class="section-label" style="margin-top:24px;"><i class="fab fa-wordpress"></i> WordPress mail relay</div>
+          <label class="field-label">Mail relay URL</label>
+          <input id="sMailRelayUrl" type="text" placeholder="https://www.sawo.com/wp-json/sawo/v1/send-mail" autocomplete="off" />
+          <div class="hint">The CMS sends mail by calling this WordPress endpoint, which runs <code>wp_mail()</code>. The SMTP fields above are not used by the relay.</div>
+          <label class="field-label">Mail relay secret</label>
+          <div class="pass-wrap">
+            <input id="sMailRelaySecret" type="password" placeholder="leave blank to keep current" autocomplete="off" />
+            <button class="eye" type="button" data-eye="sMailRelaySecret" tabindex="-1"><i class="fas fa-eye"></i></button>
+          </div>
+          <div class="hint" id="relaySecretHint">Shared secret matching <code>SAWO_MAIL_RELAY_SECRET</code> in wp-config.php. Stored server-side; never sent to the browser.</div>
+
           <button class="primary" id="saveSettingsBtn"><i class="fas fa-floppy-disk"></i> Save settings</button>
           <div class="msg-line" id="settingsMsg"></div>
+        </div>
+
+        <div class="panel">
+          <div class="section-label"><i class="fas fa-vial"></i> Send test email</div>
+          <label class="field-label">Recipient</label>
+          <input id="testTo" type="email" placeholder="rafael.boroy@sawo.com" value="rafael.boroy@sawo.com" />
+          <div class="hint">Sends a plain-text test message through the mail relay to confirm delivery works. Save the relay URL &amp; secret above first.</div>
+          <button class="primary" id="sendTestBtn"><i class="fas fa-paper-plane"></i> Send test</button>
+          <div class="msg-line" id="testMsg"></div>
         </div>
       </section>
     </div>
@@ -341,6 +364,16 @@
       document.getElementById('sMailPort').value = settings.mail_smtp_port || '';
       document.getElementById('sMailUser').value = settings.mail_smtp_user || '';
       document.getElementById('sMailFrom').value = settings.mail_from_address || '';
+      document.getElementById('sMailRelayUrl').value = settings.mail_relay_url || '';
+
+      const relayHint = document.getElementById('relaySecretHint');
+      if(settings.mail_relay_secret_set){
+        relayHint.className = 'hint set';
+        relayHint.innerHTML = '<i class="fas fa-circle-check"></i> A secret is configured (hidden). Leave blank to keep it, or type a new one to replace.';
+      } else {
+        relayHint.className = 'hint';
+        relayHint.innerHTML = 'Shared secret matching <code>SAWO_MAIL_RELAY_SECRET</code> in wp-config.php. Stored server-side; never sent to the browser.';
+      }
 
       const hint = document.getElementById('keyHint');
       keyInput.dataset.dirty = '0';
@@ -380,12 +413,29 @@
         mail_smtp_user: document.getElementById('sMailUser').value.trim(),
         mail_smtp_pass: document.getElementById('sMailPass').value,          // blank = keep
         mail_from_address: document.getElementById('sMailFrom').value.trim(),
+        mail_relay_url: document.getElementById('sMailRelayUrl').value.trim(),
+        mail_relay_secret: document.getElementById('sMailRelaySecret').value, // blank = keep
       });
       msg.className = 'msg-line ok'; msg.textContent = 'Settings saved.';
       document.getElementById('sMailPass').value = '';
+      document.getElementById('sMailRelaySecret').value = '';
       loadSettings();
     }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
     finally{ btn.disabled = false; }
+  });
+
+  // ── Send test email ──
+  document.getElementById('sendTestBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('testMsg'); msg.className = 'msg-line'; msg.textContent = '';
+    const to = document.getElementById('testTo').value.trim();
+    if(!to){ msg.className = 'msg-line err'; msg.textContent = 'Enter a recipient email.'; return; }
+    const btn = document.getElementById('sendTestBtn'); const prev = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending…';
+    try{
+      await CMS.send('POST', '/api/admin?resource=test-email', { to });
+      msg.className = 'msg-line ok'; msg.textContent = 'Sent. Check the inbox for ' + to + '.';
+    }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
+    finally{ btn.disabled = false; btn.innerHTML = prev; }
   });
 
   // ── Render the requested tab only (navigation lives in the shell header) ──

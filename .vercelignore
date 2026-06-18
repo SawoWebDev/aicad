@@ -1,3 +1,4 @@
 server.js
 .env.local
 node_modules
+migration.sql
