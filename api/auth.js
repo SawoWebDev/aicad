@@ -116,6 +116,34 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, role: 'admin' });
     }
 
+    // ── magic-link callback: exchange tokens from Supabase redirect for httpOnly cookies ──
+    if (action === 'magic-callback') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { access_token, refresh_token } = await readJsonBody(req);
+      if (!access_token || !refresh_token) {
+        return res.status(400).json({ error: 'Tokens are required.' });
+      }
+
+      const auth = anonClient();
+      const { data, error } = await auth.auth.getUser(access_token);
+      if (error || !data?.user) {
+        return res.status(401).json({ error: 'Invalid or expired magic link.' });
+      }
+
+      const svc = serviceClient();
+      const { data: profile } = await svc
+        .from('profiles')
+        .select('role, active')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      if (!profile || profile.active === false) {
+        return res.status(403).json({ error: 'This account is deactivated.' });
+      }
+
+      setSessionCookies(res, access_token, refresh_token);
+      return res.status(200).json({ ok: true, role: profile.role });
+    }
+
     // ── request a password-reset email (email is used only for this) ──
     if (action === 'requestReset') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

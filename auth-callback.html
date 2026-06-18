@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signing in… — SAWO CAD CMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --brown:#AF8564; --bg:#faf7f3; --panel:#fff; --black:#141617; --text-dim:#8a7c6e; }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--black);
+    font-family:'Montserrat',sans-serif; font-size:14px;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .box{
+    background:var(--panel); border-radius:18px; border-top:5px solid var(--brown);
+    padding:38px 34px; width:400px; max-width:100%; text-align:center;
+    box-shadow:0 25px 70px rgba(139,94,60,0.18);
+  }
+  h1{ font-size:1.2rem; font-weight:700; color:var(--brown); margin:0 0 10px; }
+  p{ color:var(--text-dim); font-size:0.88rem; margin:0; }
+  .err{ color:#C9302C; font-weight:600; }
+  .spinner{ display:inline-block; width:32px; height:32px; border:3px solid #e7ddd2;
+    border-top-color:var(--brown); border-radius:50%; animation:spin .8s linear infinite; margin-bottom:16px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="spinner" id="spinner"></div>
+  <h1 id="title">Signing you in…</h1>
+  <p id="msg">Please wait while we set up your session.</p>
+</div>
+<script>
+(function(){
+  var title = document.getElementById('title');
+  var msg   = document.getElementById('msg');
+  var spinner = document.getElementById('spinner');
+
+  function fail(text){
+    spinner.style.display = 'none';
+    title.textContent = 'Sign-in failed';
+    msg.className = 'err';
+    msg.textContent = text || 'This link is invalid or has expired.';
+    setTimeout(function(){ location.replace('/login'); }, 3000);
+  }
+
+  // Supabase redirects with tokens in the URL hash fragment.
+  var hash = window.location.hash.substring(1);
+  if(!hash){ return fail('No authentication data found in the link.'); }
+
+  var params = new URLSearchParams(hash);
+  var accessToken  = params.get('access_token');
+  var refreshToken = params.get('refresh_token');
+
+  if(!accessToken || !refreshToken){ return fail('Missing tokens — the link may have expired.'); }
+
+  // Exchange tokens for httpOnly session cookies via the backend.
+  fetch('/api/auth?action=magic-callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken }),
+  })
+  .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+  .then(function(res){
+    if(!res.ok) return fail(res.data.error || 'Could not sign in.');
+    title.textContent = 'Welcome!';
+    msg.className = '';
+    msg.textContent = 'Redirecting to the app…';
+    location.replace('/app');
+  })
+  .catch(function(){ fail('Network error — please try again.'); });
+})();
+</script>
+</body>
+</html>

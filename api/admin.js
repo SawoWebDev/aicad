@@ -7,7 +7,7 @@
 //                       PUT    {…fields}             -> update settings
 //   ?resource=test-email POST  {to}                 -> send a test email via the WP relay
 // ─────────────────────────────────────────────────────────────────────────
-import { serviceClient, requireRole, readJsonBody, sendMailViaRelay } from './_lib.js';
+import { serviceClient, requireRole, readJsonBody, sendMailViaRelay, APP_URL } from './_lib.js';
 
 const SECRET_FIELDS = ['openrouter_api_key', 'mail_smtp_pass', 'mail_relay_secret'];
 const GET_MASK_FIELDS = ['mail_smtp_pass', 'mail_relay_secret'];
@@ -117,6 +117,36 @@ export default async function handler(req, res) {
       }
 
       return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // ── MAGIC LINK ──
+    if (resource === 'magic-link') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const { id } = await readJsonBody(req);
+      if (!id) return res.status(400).json({ error: 'User ID is required.' });
+
+      const { data: userData, error: userErr } = await svc.auth.admin.getUserById(id);
+      if (userErr || !userData?.user?.email) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+
+      const { data: profile } = await svc.from('profiles').select('active').eq('id', id).maybeSingle();
+      if (!profile || profile.active === false) {
+        return res.status(400).json({ error: 'Cannot generate link for an inactive user.' });
+      }
+
+      const appUrl = APP_URL || 'https://sawoaicad.vercel.app';
+      const { data: linkData, error: linkErr } = await svc.auth.admin.generateLink({
+        type: 'magiclink',
+        email: userData.user.email,
+        options: { redirectTo: appUrl + '/auth-callback' },
+      });
+
+      if (linkErr || !linkData?.properties?.action_link) {
+        return res.status(500).json({ error: linkErr?.message || 'Could not generate magic link.' });
+      }
+
+      return res.status(200).json({ ok: true, link: linkData.properties.action_link });
     }
 
     // ── TEST EMAIL ──

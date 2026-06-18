@@ -284,10 +284,12 @@
           '<td>' +
             '<button class="mini" data-act="role" data-id="' + u.id + '" data-val="' + toggleRole + '">Make ' + toggleRole + '</button>' +
             '<button class="mini" data-act="active" data-id="' + u.id + '" data-val="' + (u.active === false ? 'true' : 'false') + '">' + (u.active === false ? 'Activate' : 'Deactivate') + '</button>' +
+            (u.active !== false ? '<button class="mini magic-btn" data-id="' + u.id + '" data-name="' + esc(u.username || u.email || '') + '"><i class="fas fa-link"></i> Magic link</button>' : '') +
           '</td>';
         rows.appendChild(tr);
       });
-      rows.querySelectorAll('.mini').forEach(b => b.addEventListener('click', () => patchUser(b.dataset)));
+      rows.querySelectorAll('.mini:not(.magic-btn)').forEach(b => b.addEventListener('click', () => patchUser(b.dataset)));
+      rows.querySelectorAll('.magic-btn').forEach(b => b.addEventListener('click', () => genMagicLink(b.dataset.id, b.dataset.name, b)));
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
       rows.innerHTML = '<tr><td colspan="6" class="err" style="color:#C9302C;">' + esc(e.message) + '</td></tr>';
@@ -300,6 +302,23 @@
     if(ds.act === 'active') body.active = ds.val === 'true';
     try{ await CMS.send('PATCH', '/api/admin?resource=users', body); CMS.toast('User updated'); loadUsers(); }
     catch(e){ alert(e.message); }
+  }
+
+  async function genMagicLink(id, name, btn){
+    const prev = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+    try{
+      const { link } = await CMS.send('POST', '/api/admin?resource=magic-link', { id });
+      await navigator.clipboard.writeText(link);
+      CMS.toast('Magic link copied for ' + (name || 'user'));
+      btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+      setTimeout(() => { btn.innerHTML = prev; btn.disabled = false; }, 2000);
+    }catch(e){
+      CMS.toast(e.message, 'err');
+      btn.innerHTML = prev;
+      btn.disabled = false;
+    }
   }
 
   document.getElementById('createUserBtn').addEventListener('click', async () => {
