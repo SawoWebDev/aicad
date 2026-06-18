@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "redirects": [
+    { "source": "/", "destination": "/login", "permanent": false }
+  ],
   "rewrites": [
-    { "source": "/", "destination": "/login.html" },
-    { "source": "/login", "destination": "/login.html" },
     { "source": "/app", "destination": "/app.html" },
     { "source": "/cms/conversations/:id", "destination": "/app.html?conversation=:id" }
   ]
