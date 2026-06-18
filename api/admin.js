@@ -122,7 +122,7 @@ export default async function handler(req, res) {
     // ── MAGIC LINK ──
     if (resource === 'magic-link') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-      const { id } = await readJsonBody(req);
+      const { id, origin } = await readJsonBody(req);
       if (!id) return res.status(400).json({ error: 'User ID is required.' });
 
       const { data: userData, error: userErr } = await svc.auth.admin.getUserById(id);
@@ -135,18 +135,41 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Cannot generate link for an inactive user.' });
       }
 
-      const appUrl = APP_URL || 'https://sawoaicad.vercel.app';
+      // Adapt to the domain the admin is actually on. Prefer the browser-sent
+      // origin (so a production admin gets production links, a local admin gets
+      // local links); fall back to the request host, then APP_URL / default.
+      let base = '';
+      if (typeof origin === 'string' && /^https?:\/\//.test(origin)) {
+        base = origin.replace(/\/$/, '');
+      } else if (req.headers.host) {
+        const proto = (req.headers['x-forwarded-proto'] || 'https').toString().split(',')[0];
+        base = `${proto}://${req.headers.host}`;
+      } else {
+        base = APP_URL || 'https://sawoaicad.vercel.app';
+      }
+      const redirectTo = base + '/auth-callback';
+
       const { data: linkData, error: linkErr } = await svc.auth.admin.generateLink({
         type: 'magiclink',
         email: userData.user.email,
-        options: { redirectTo: appUrl + '/auth-callback' },
+        options: { redirectTo },
       });
 
       if (linkErr || !linkData?.properties?.action_link) {
         return res.status(500).json({ error: linkErr?.message || 'Could not generate magic link.' });
       }
 
-      return res.status(200).json({ ok: true, link: linkData.properties.action_link });
+      // Belt-and-suspenders: force the link's redirect_to to our callback so it
+      // can't silently fall back to the project's Site URL. (Supabase will only
+      // honor this if redirectTo is in the Auth "Redirect URLs" allow-list.)
+      let link = linkData.properties.action_link;
+      try {
+        const u = new URL(link);
+        u.searchParams.set('redirect_to', redirectTo);
+        link = u.toString();
+      } catch { /* leave as-is */ }
+
+      return res.status(200).json({ ok: true, link });
     }
 
     // ── TEST EMAIL ──

@@ -80,6 +80,14 @@
   .pill.off{ background:rgba(201,48,44,0.12); color:#C9302C; }
   .mini{ border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.68rem; padding:5px 9px; cursor:pointer; margin-right:6px; }
   .mini:hover{ border-color:var(--brown-mid); }
+  /* ── Row actions dropdown ── */
+  .dropdown{ position:relative; display:inline-block; }
+  .dd-toggle{ display:inline-flex; align-items:center; gap:6px; }
+  .dd-menu{ position:absolute; right:0; top:calc(100% + 4px); min-width:172px; background:#fff; border:1px solid var(--line); border-radius:9px; box-shadow:0 10px 28px rgba(139,94,60,0.18); z-index:60; overflow:hidden; padding:4px; }
+  .dd-menu button{ display:flex; align-items:center; gap:9px; width:100%; text-align:left; border:none; background:transparent; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.72rem; padding:8px 11px; border-radius:6px; cursor:pointer; }
+  .dd-menu button i{ width:14px; text-align:center; color:var(--brown-mid); }
+  .dd-menu button:hover{ background:var(--bg); }
+  .dd-menu button.danger{ color:#C9302C; } .dd-menu button.danger i{ color:#C9302C; }
   .hidden{ display:none; }
   .gate-msg{ text-align:center; color:#C9302C; font-weight:600; padding:40px; }
 </style>
@@ -262,6 +270,12 @@
     nuConfirmWrap.classList.toggle('hidden', nuPass.value.length === 0);
   });
 
+  // ── Row-action dropdowns ──
+  function closeAllMenus(){
+    document.querySelectorAll('.dd-menu').forEach(m => m.classList.add('hidden'));
+  }
+  document.addEventListener('click', closeAllMenus);
+
   // ── Users ──
   async function loadUsers(){
     const rows = document.getElementById('userRows');
@@ -282,14 +296,27 @@
           '<td>' + statusPill + '</td>' +
           '<td style="color:var(--text-dim);">' + esc(fmt(u.created_at)) + '</td>' +
           '<td>' +
-            '<button class="mini" data-act="role" data-id="' + u.id + '" data-val="' + toggleRole + '">Make ' + toggleRole + '</button>' +
-            '<button class="mini" data-act="active" data-id="' + u.id + '" data-val="' + (u.active === false ? 'true' : 'false') + '">' + (u.active === false ? 'Activate' : 'Deactivate') + '</button>' +
-            (u.active !== false ? '<button class="mini magic-btn" data-id="' + u.id + '" data-name="' + esc(u.username || u.email || '') + '"><i class="fas fa-link"></i> Magic link</button>' : '') +
+            '<div class="dropdown">' +
+              '<button class="mini dd-toggle"><i class="fas fa-ellipsis"></i> Actions</button>' +
+              '<div class="dd-menu hidden">' +
+                (u.active !== false ? '<button class="magic-btn" data-id="' + u.id + '" data-name="' + esc(u.username || u.email || '') + '"><i class="fas fa-link"></i> Copy magic link</button>' : '') +
+                '<button data-act="role" data-id="' + u.id + '" data-val="' + toggleRole + '"><i class="fas fa-user-shield"></i> Make ' + toggleRole + '</button>' +
+                '<button class="' + (u.active === false ? '' : 'danger') + '" data-act="active" data-id="' + u.id + '" data-val="' + (u.active === false ? 'true' : 'false') + '"><i class="fas fa-' + (u.active === false ? 'circle-check' : 'ban') + '"></i> ' + (u.active === false ? 'Activate' : 'Deactivate') + '</button>' +
+              '</div>' +
+            '</div>' +
           '</td>';
         rows.appendChild(tr);
       });
-      rows.querySelectorAll('.mini:not(.magic-btn)').forEach(b => b.addEventListener('click', () => patchUser(b.dataset)));
-      rows.querySelectorAll('.magic-btn').forEach(b => b.addEventListener('click', () => genMagicLink(b.dataset.id, b.dataset.name, b)));
+      // Toggle a row's dropdown (closing any other open one first).
+      rows.querySelectorAll('.dd-toggle').forEach(btn => btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = btn.nextElementSibling;
+        const isOpen = !menu.classList.contains('hidden');
+        closeAllMenus();
+        if(!isOpen) menu.classList.remove('hidden');
+      }));
+      rows.querySelectorAll('.dd-menu [data-act]').forEach(b => b.addEventListener('click', () => { closeAllMenus(); patchUser(b.dataset); }));
+      rows.querySelectorAll('.dd-menu .magic-btn').forEach(b => b.addEventListener('click', () => { closeAllMenus(); genMagicLink(b.dataset.id, b.dataset.name, b); }));
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
       rows.innerHTML = '<tr><td colspan="6" class="err" style="color:#C9302C;">' + esc(e.message) + '</td></tr>';
@@ -304,20 +331,14 @@
     catch(e){ alert(e.message); }
   }
 
-  async function genMagicLink(id, name, btn){
-    const prev = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+  async function genMagicLink(id, name){
     try{
-      const { link } = await CMS.send('POST', '/api/admin?resource=magic-link', { id });
-      await navigator.clipboard.writeText(link);
+      const { link } = await CMS.send('POST', '/api/admin?resource=magic-link', { id, origin: window.location.origin });
+      try{ await navigator.clipboard.writeText(link); }
+      catch(_){ window.prompt('Copy this magic link:', link); }
       CMS.toast('Magic link copied for ' + (name || 'user'));
-      btn.innerHTML = '<i class="fas fa-check"></i> Copied';
-      setTimeout(() => { btn.innerHTML = prev; btn.disabled = false; }, 2000);
     }catch(e){
       CMS.toast(e.message, 'err');
-      btn.innerHTML = prev;
-      btn.disabled = false;
     }
   }
 
