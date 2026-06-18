@@ -1,0 +1,1112 @@
+<!-- aicad.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAD Drawing Generator — SAWO</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brown: #AF8564;
+    --brown-deep: #AF8564;
+    --brown-mid: #A67853;
+    --brown-light: #C4A574;
+    --black: #141617;
+    --bg: #faf7f3;
+    --panel: #ffffff;
+    --line: #e7ddd2;
+    --text-dim: #8a7c6e;
+  }
+
+  *{ box-sizing: border-box; }
+  html, body{ height: 100%; }
+  body{
+    margin: 0;
+    background: var(--bg);
+    color: var(--black);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── API KEY GATE ── */
+  #gate{
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  #gate .gate-box{
+    background: var(--panel);
+    border-radius: 18px;
+    border-top: 5px solid var(--brown-mid);
+    padding: 38px 34px;
+    width: 400px;
+    max-width: 100%;
+    box-shadow: 0 25px 70px rgba(139,94,60,0.18);
+    text-align: center;
+  }
+  #gate .gate-logo{ height: 40px; width: auto; margin-bottom: 20px; }
+  #gate h1{
+    font-size: 1.45rem;
+    font-weight: 700;
+    margin: 0 0 6px;
+    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  #gate .gate-sub{ font-size: 0.9rem; color: var(--text-dim); margin: 0 0 24px; }
+  #gate label{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--brown-deep);
+    margin-bottom: 8px;
+  }
+  #keyInput{
+    width: 100%;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--black);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.95rem;
+    padding: 11px 13px;
+    outline: none;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  #keyInput:focus{ border-color: var(--brown-mid); }
+  #enterBtn{
+    width: 100%;
+    margin-top: 16px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 12px 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    transition: all 0.3s ease;
+  }
+  #enterBtn:hover{ background: #fff; color: var(--brown-deep); border-color: var(--brown-mid); }
+  #gate .gate-note{
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    line-height: 1.5;
+  }
+  #gate .gate-err{ font-size: 0.8rem; color: #C9302C; margin-top: 12px; min-height: 16px; font-weight: 600; }
+
+  /* ── SHELL ── */
+  #shell{ display: none; flex-direction: column; height: 100vh; }
+  #shell.visible{ display: flex; }
+
+  /* ── Shared page header (identical across all CMS frames) ── */
+  .page-header{
+    display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
+    border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
+  }
+  .ph-icon{
+    width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
+    box-shadow:0 6px 16px rgba(166,120,83,0.32);
+  }
+  .ph-text h2{ font-size:1.08rem; font-weight:700; margin:0; color:var(--brown-deep); letter-spacing:0.2px; }
+  .ph-text p{ font-size:0.74rem; color:var(--text-dim); margin:1px 0 0; }
+  .actions{ margin-left:auto; display:flex; align-items:center; gap:12px; }
+  .log-status{
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .log-status .dot{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .log-status.connecting .dot{ animation: logpulse 1s ease-in-out infinite; }
+  .log-status.live{ color: #4A9D4A; border-color: rgba(74,157,74,0.35); }
+  .log-status.live .dot{ background: #4A9D4A; box-shadow: 0 0 8px rgba(74,157,74,0.7); }
+  .log-status.error{ color: #C9302C; border-color: rgba(201,48,44,0.35); }
+  .log-status.error .dot{ background: #C9302C; }
+  @keyframes logpulse{ 0%,100%{ opacity: 1; } 50%{ opacity: 0.25; } }
+  @media (max-width: 640px){
+    .log-status #logStatusText{ display: none; }
+    .log-status{ padding: 6px; }
+  }
+
+  /* ── APP GRID ── */
+  #app{
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .left, .right{
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .left{
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+  }
+
+  .col-head{
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    border-bottom: 1px solid var(--line);
+    padding: 13px 16px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--brown-deep);
+    flex-shrink: 0;
+  }
+  .col-head i{ color: var(--brown-mid); }
+
+  /* ── CHAT ── */
+  #chatThread{
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    background: var(--bg);
+  }
+  #chatThread::-webkit-scrollbar{ width: 7px; }
+  #chatThread::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 4px; }
+  .msg{
+    padding: 10px 13px;
+    max-width: 92%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-radius: 12px;
+    font-size: 0.86rem;
+    line-height: 1.55;
+  }
+  .msg.bot{
+    align-self: flex-start;
+    background: #fff;
+    border-left: 4px solid var(--brown-mid);
+    box-shadow: 0 5px 15px rgba(139,94,60,0.08);
+    border-top-left-radius: 4px;
+  }
+  .msg.user{
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    color: #fff;
+    box-shadow: 0 5px 15px rgba(139,94,60,0.2);
+    border-top-right-radius: 4px;
+  }
+  .msg.sys{
+    align-self: center;
+    background: transparent;
+    text-align: center;
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    max-width: 100%;
+    padding: 4px 8px;
+  }
+  .msg .who{
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+  }
+  .msg.bot .who{ color: var(--brown-mid); }
+  .msg.user .who{ color: rgba(255,255,255,0.8); }
+
+  .chat-input-row{
+    border-top: 1px solid var(--line);
+    padding: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    flex-shrink: 0;
+    background: var(--panel);
+  }
+  #chatInput{
+    flex: 1;
+    border: 1.5px solid var(--line);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--black);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.88rem;
+    padding: 8px 12px;
+    min-height: 36px;
+    max-height: 140px;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    overflow-y: auto;
+  }
+  #chatInput:focus{ border-color: var(--brown-mid); }
+  #sendBtn{
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    width: 36px;
+    height: auto;
+    padding: 0;
+    gap: 0;
+    transition: all 0.3s ease;
+  }
+  #sendBtn:hover{ background: #fff; color: var(--brown-deep); border-color: var(--brown-mid); }
+  #sendBtn:disabled{
+    background: var(--line);
+    color: var(--text-dim);
+    border-color: var(--line);
+    cursor: not-allowed;
+  }
+
+  /* ── OUTPUT ── */
+  #output{
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    overflow: auto;
+    min-height: 0;
+  }
+  .empty-state{ text-align: center; max-width: 360px; }
+  .empty-state .icon-wrapper{
+    width: 86px; height: 86px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brown-mid) 0%, var(--brown-light) 100%);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 10px 28px rgba(166,120,83,0.35), inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+  .empty-state .icon-wrapper i{ font-size: 2.3rem; color: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+  .empty-state h3{
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--brown-deep);
+  }
+  .empty-state p{ font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; margin: 0; }
+
+  .result-frame{
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 100%;
+    box-shadow: 0 20px 55px rgba(139,94,60,0.18);
+  }
+  .result-frame img{ display: block; max-width: 100%; max-height: 78vh; cursor: zoom-in; }
+
+  .error-state{
+    text-align: center;
+    max-width: 440px;
+    white-space: pre-wrap;
+    color: #C9302C;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  .error-state .err-icon{ font-size: 2rem; margin-bottom: 12px; display: block; }
+
+  /* ── SCAN ANIMATION ── */
+  .scan-wrap{ text-align: center; }
+  .scan{
+    width: 320px;
+    max-width: 70vw;
+    height: 210px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    margin: 0 auto 16px;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(139,94,60,0.12);
+  }
+  .scan::before{
+    content: "";
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: var(--brown);
+    box-shadow: 0 0 14px 2px rgba(175,133,100,0.7);
+    animation: scanmove 1.6s ease-in-out infinite;
+  }
+  @keyframes scanmove{ 0%{ top: 0; } 50%{ top: calc(100% - 2px); } 100%{ top: 0; } }
+  .scan-label{
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--brown-deep);
+  }
+
+  .out-actions{
+    border-top: 1px solid var(--line);
+    padding: 12px 16px;
+    flex-shrink: 0;
+    display: none;
+    background: var(--panel);
+  }
+  .out-actions.visible{ display: block; }
+  #downloadBtn{
+    border: 2px solid var(--brown-mid);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--brown-deep);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 9px 16px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+  }
+  #downloadBtn:hover{ background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%); color: #fff; border-color: transparent; }
+
+  /* ── LIGHTBOX ── */
+  #lightbox{
+    position: fixed;
+    inset: 0;
+    background: rgba(20,22,23,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 28px;
+    cursor: zoom-out;
+  }
+  #lightbox.visible{ display: flex; }
+  #lightbox img{ max-width: 100%; max-height: 100%; border: 2px solid var(--brown-mid); border-radius: 8px; }
+
+  ::placeholder{ color: #b8a89a; }
+
+  @media (max-width: 900px){
+    #app{ grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    .left{ border-right: none; border-bottom: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- API key + model selection are handled server-side (CMS admin Settings);
+       the public tool no longer exposes any key/model controls. -->
+
+  <!-- ══════════════ SHELL ══════════════ -->
+  <div id="shell">
+
+    <!-- HEADER -->
+    <header class="page-header">
+      <div class="ph-icon"><i class="fas fa-compass-drafting"></i></div>
+      <div class="ph-text">
+        <h2>CAD Generator</h2>
+        <p>Technical sauna drawing synthesis</p>
+      </div>
+      <div class="actions">
+        <div class="log-status connecting" id="logStatus" title="Supabase conversation logging">
+          <span class="dot"></span>
+          <span id="logStatusText">Log: connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- APP -->
+    <div id="app">
+      <div class="left">
+        <div class="col-head"><i class="fas fa-comments"></i> Requirements assistant</div>
+        <div id="chatThread"></div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" placeholder="Sauna for 5 persons."></textarea>
+          <button id="sendBtn" title="Send message"><i class="fas fa-paper-plane"></i></button>
+        </div>
+      </div>
+      <div class="right">
+        <div class="col-head"><i class="fas fa-image"></i> Output</div>
+        <div id="output">
+          <div class="empty-state">
+            <div class="icon-wrapper"><i class="fas fa-image"></i></div>
+            <h3>Generated drawings appear here</h3>
+            <p>Describe your sauna in the chat — your technical drawing is generated automatically once the assistant has enough detail and you confirm.</p>
+          </div>
+        </div>
+        <div class="out-actions" id="outActions">
+          <button id="downloadBtn"><i class="fas fa-download"></i> Download PNG</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ LIGHTBOX ══════════════ -->
+  <div id="lightbox"><img id="lightboxImg" src="" alt="Generated drawing full size" /></div>
+
+<script>
+(function(){
+  // ── Backend proxy config ──
+  // All OpenRouter calls + conversation logging go through the CMS serverless API
+  // so the API key and model choices stay server-side (managed in the admin
+  // Settings page).
+  // This copy is served from the SAME origin as the CMS API (it ships inside the
+  // vercel/ app and is embedded in the CMS shell), so API_BASE is '' → all calls
+  // are same-origin relative paths. That works in local dev (localhost:3000) and
+  // in production (sawoaicad.vercel.app) with no CORS dependency. The standalone
+  // public copy in SAUNA CAD/conversation.html keeps the absolute URL instead.
+  const API_BASE = '';
+
+  // ── Verbatim image system prefix (from original buildSystemPrefix) ──
+  const IMAGE_SYSTEM_PREFIX = "Generate a complete technical CAD-style engineering drawing, drafted in a precise architectural/mechanical drafting convention: clean black linework on a white canvas, dimension lines with arrowheads and numeric callouts, labeled components with leader lines, a title block, and consistent line weights distinguishing outlines from hatching. ";
+
+  // ── Verbatim reference template (from original) ──
+  const REFERENCE_TEMPLATE = `================================================================================
+CAD TECHNICAL DRAWING — SAUNA UNIT LAYOUT
+DRAWING CONTAINS: FLOOR PLAN (Left) | SECTION VIEW (Right) | SPEC TABLE (Far Right)
+DRAWING STYLE: Monochrome technical drafting — black linework on a pure white background ONLY. No color fills, no highlights, no blue, no yellow, no shading. All elements (benches, LED strips, vents, etc.) are drawn as plain black lines and labels.
+================================================================================
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: FLOOR PLAN [FIT TO SCALE]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OVERALL OUTER DIMENSIONS (Floor Plan):
+Total Width (horizontal): {W} mm
+Total Height (vertical) : {H} mm
+
+INNER CLEAR DIMENSIONS:
+Inner Width  : {IW} mm
+Inner Height : {IH} mm
+
+HORIZONTAL DIMENSION BREAKDOWN (Bottom):
+Left section : {L1} mm [contains HEATER + V2 CONTROL area]
+Center section: {L2} mm [ENTRY]
+Right section : {L3} mm
+─────────────────────────────
+Total         : {W} mm
+
+VERTICAL DIMENSION BREAKDOWN (Right side):
+Top zone      : {V1} mm [UPPER BENCH zone]
+Middle zone   : {V2} mm [LOWER BENCH zone]
+Bottom zone   : {V3} mm [FLOOR / HEATER zone]
+─────────────────────────────
+Total         : {IH} mm (inner height)
+
+────────────────────────────────────────────────────────────────────────────────
+WALL CONSTRUCTION (Floor Plan):
+────────────────────────────────────────────────────────────────────────────────
+Outer wall boundary : {W} × {H} mm
+Inner cavity        : {IW} × {IH} mm
+Wall thickness      : computed from outer/inner difference, each side
+Wall material finish: Vertical tongue-and-groove cedar paneling (depicted as vertical parallel lines across all walls)
+
+────────────────────────────────────────────────────────────────────────────────
+INTERIOR ELEMENTS — FLOOR PLAN VIEW:
+────────────────────────────────────────────────────────────────────────────────
+[A] UPPER BENCH
+Label       : "UPPER BENCH" "+ {UB_H}mm FROM FLOOR LINE"
+Position    : Rear (top) of plan, spanning full interior width
+Zone depth  : {V1} mm (from rear wall)
+Indicator   : Bench edge line across full interior width (plain black linework, no color)
+
+[B] LOWER BENCH
+Label       : "LOWER BENCH" "+ {LB_H}mm FROM FLOOR LINE"
+Position    : Middle zone, spanning full interior width
+Zone depth  : {V2} mm
+Indicator   : Bench edge line across full interior width (plain black linework, no color)
+
+[C] FLOOR
+Label       : "FLOOR"
+Position    : Lower portion of interior (bottom zone)
+Zone depth  : {V3} mm
+
+[D] HEATER
+Label       : "HEATER"
+Position    : Bottom-left corner of interior plan
+Depiction   : Oval/rounded rectangular shape with internal detail lines (sauna heater unit shown in plan view)
+Lateral pos : Within the {L1} mm left section
+
+[E] V2 CONTROL
+Label       : "V2 CONTROL"
+Position    : Bottom-left area, below heater zone (external/recessed panel on front-left wall)
+
+[F] ENTRY / DOOR
+Label       : "ENTRY"
+Door type   : {DOOR_TYPE}
+Position    : Bottom-center of floor plan
+Width       : {L2} mm
+Depiction   : Open entry/door swing shown
+
+[G] AIRVENT (×2)
+Labels      : "AIRVENT" — appears TWICE:
+              1. Upper airvent — near top-center of interior (just below top bench area, centered horizontally)
+              2. Lower airvent — mid-height center of interior (between upper and lower bench zones)
+Depiction   : Small rectangular vent symbols with leader lines
+
+[H] LED LIGHTS
+Label       : "LED LIGHTS"
+Position    : Top-left area, leader line pointing to upper-left corner zone
+Depiction   : Strip/row of LED fixtures along upper perimeter
+
+[I] BENCH SENSOR
+Label       : "BENCH SENSOR"
+Position    : Top-right area, leader line pointing to right-side top area
+Depiction   : Small sensor element on/near bench
+
+[J] NORTH ARROW / ORIENTATION MARKER
+Position    : Top-center of floor plan (above outer wall)
+Depiction   : Arrow with flag/triangle indicator
+
+────────────────────────────────────────────────────────────────────────────────
+FLOOR PLAN — TITLE BLOCK (Bottom Left):
+────────────────────────────────────────────────────────────────────────────────
+Title   : FLOOR PLAN
+Subtitle: FIT TO SCALE
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: SECTION VIEW [Vertical Cross-Section / Elevation]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TITLE: SECTION
+OVERALL HEIGHT LABEL: "SAUNA ROOM HEIGHT" = {ROOM_HEIGHT} mm [indicated by vertical dimension arrow, right side]
+
+VERTICAL DIMENSION BREAKDOWN (Section View, right side):
+Top zone    : {S1} mm [ceiling to upper bench level]
+Upper bench : {S2} mm [upper bench to lower bench]
+Lower bench : {S3} mm [lower bench to floor level]
+Floor zone  : {S4} mm [finish floor line at bottom]
+─────────────────────────────
+NOTE: Dimensions reference floor-to-ceiling; total room height = {ROOM_HEIGHT} mm
+
+REFERENCE LINE:
+"Inside Top Ceiling line" — horizontal dashed line at ceiling level (top)
+"Finish Floor Line" — horizontal line at base (bottom)
+
+────────────────────────────────────────────────────────────────────────────────
+INTERIOR ELEMENTS — SECTION VIEW:
+────────────────────────────────────────────────────────────────────────────────
+[A] UPPER BENCH
+Label    : "UPPER BENCH" Height: +{UB_H} mm from floor line
+Position : Right-side interior, upper tier
+Depth    : Full bench depth shown in section
+
+[B] LOWER BENCH
+Label    : "LOWER BENCH" Height: +{LB_H} mm from floor line
+Position : Right-side interior, lower tier below upper bench
+
+[C] BACKREST
+Label    : "BACKREST"
+Position : Angled/vertical element behind upper bench on right wall
+
+[D] BENCH SENSOR
+Label    : "BENCH SENSOR"
+Position : Right side, near upper bench level
+Leader   : Arrow pointing to sensor location on bench/wall
+
+[E] LED LIGHTS
+Label    : "LED LIGHTS"
+Position : Left interior wall, vertical strip/bar
+Depiction: Vertical strip (LED light bar) on left wall of section, drawn as plain black linework (no color)
+
+[F] FLOOR
+Label    : "FLOOR"
+Position : Bottom of section interior
+
+[G] HEATER (implied bottom-left, shown in section)
+Position : Bottom-left of section, floor level
+
+[H] WALLS
+Depiction: Vertical cedar paneling on all interior surfaces
+Roof/ceiling shown at top with structural framing indicated
+
+[I] DOOR LOCATION
+Door type: {DOOR_TYPE}
+Position : Right side of section (entry/door opening)
+Depiction: Door panel visible on right wall of section view
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION VIEW — REFERENCE LEADERS & ANNOTATIONS:
+────────────────────────────────────────────────────────────────────────────────
+- "BENCH SENSOR" → leader to upper right area
+- "BACKREST"     → leader to angled element behind upper bench
+- "LED LIGHTS"   → leader to left-wall vertical LED strip (black linework)
+- "UPPER BENCH"  → label at upper bench platform
+- "LOWER BENCH"  → label at lower bench platform
+- "FLOOR"        → label at base level
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: SPECIFICATION TABLE [Top-Right of Drawing]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+┌──────────────────────┬────────────────────────────┐
+│ EXT. ROOM SIZE       │ {EXT_SIZE_M}               │
+├──────────────────────┼────────────────────────────┤
+│ EXT. RM VOLUME       │ {EXT_VOL} m3                │
+├──────────────────────┼────────────────────────────┤
+│ INT. ROOM SIZE       │ {INT_SIZE_M}               │
+├──────────────────────┼────────────────────────────┤
+│ INT. RM VOLUME       │ {INT_VOL} m3                │
+├──────────────────────┼────────────────────────────┤
+│ CAPACITY             │ {CAPACITY}                  │
+├──────────────────────┼────────────────────────────┤
+│ HEATER               │ {HEATER_MODEL}              │
+│                      │ —                            │
+└──────────────────────┴────────────────────────────┘
+
+────────────────────────────────────────────────────────────────────────────────
+WALLS TABLE:
+────────────────────────────────────────────────────────────────────────────────
+Columns: WALLS | QTY | WINDOW GRILL | COLOR G/T/C | STONE INLAY @ WALL | PLYWOOD @ EXT.
+┌──────────┬─────┬───────────────┬───────────────┬────────────────────┬──────────────┐
+│ WALLS    │ QTY │ WINDOW (GRILL)│ COLOR (G/T/C) │ STONE INLAY @ WALL │ PLYWOOD @EXT.│
+├──────────┼─────┼───────────────┼───────────────┼────────────────────┼──────────────┤
+│ {WALL1}  │ {WALL1_QTY} │       │               │                    │              │
+├──────────┼─────┼───────────────┼───────────────┼────────────────────┼──────────────┤
+│ {WALL2}  │ {WALL2_QTY} │       │               │                    │              │
+├──────────┼─────┼───────────────┼───────────────┼────────────────────┼──────────────┤
+│ —        │     │               │               │                    │              │
+└──────────┴─────┴───────────────┴───────────────┴────────────────────┴──────────────┘
+
+────────────────────────────────────────────────────────────────────────────────
+DOOR TABLE:
+────────────────────────────────────────────────────────────────────────────────
+Columns: DOOR | DOOR HANDLE | COLOR | TYPE
+┌──────┬──────────────────────────────────────────────────────────────────────┐
+│ DOOR │ TYPE: {DOOR_TYPE} — [checkbox options: 568 / 558 / 569 / 999] COLOR: G / C TYPE: STD/DUS│
+└──────┴──────────────────────────────────────────────────────────────────────┘
+(Checkboxes visible; specific selections not clearly marked in source drawing)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: REMARKS / NOTES BLOCK [Bottom-Right of Drawing]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REMARKS:
+{REMARKS_LIST}
+
+ELECTRICAL REQUIREMENTS:
+- FOR SINGLE PHASE: 230V 1N~
+• 3.5 mm² THHN stranded wire with ground
+• 1 x 20 Amp Circuit Breaker
+================================================================================
+END OF TEXT-BASED CAD REPRESENTATION
+================================================================================
+
+Generate the complete technical CAD drawing canvas image now.`;
+
+  // ── Verbatim chat system prompt + APPENDED trigger instruction ──
+  const SYSTEM_PROMPT = `You are a requirements-gathering assistant for a sauna manufacturer's CAD drawing pipeline. You chat with the client to collect what's needed to produce a structured technical drawing dataset.
+
+Your scope, strictly:
+- Sauna room topics: focus on measurements (outer width/height/depth, inner clear dimensions, wall thickness, bench heights and depths, ceiling/room height, floor-to-bench dimensions) and door type (ask explicitly: single door or double door).
+- Accessories topics: anything that is not core room structure (e.g. LED lighting preferences, additional control panels, speakers, extra vents, towel hooks, glass window style, stone inlay, etc.) — these all get placed into the REMARKS section of the final output, never mixed into the dimensional sections.
+- Stay on these two topics only. If the user goes off-topic, gently steer back to sauna measurements, door type, or accessories/remarks.
+- Be concise and conversational. Ask one or two focused questions at a time, don't interrogate with a long list.
+- Once you believe you have enough information (at minimum: outer room size, inner room size or wall thickness, bench heights, room height, and door type), tell the user you have enough to generate the txt block, and that they can click "Generate txt block."
+
+You do not generate the txt block yourself in normal chat replies — just gather and confirm information conversationally.
+
+When you have gathered enough data AND the user explicitly confirms (says "go", "generate", "yes", "okay", "proceed", or any clear affirmation), end your reply with this exact tag on its own line:
+[READY_TO_GENERATE]`;
+
+  // ── Verbatim txt-block system prompt (includes the reference template) ──
+  const TXTBLOCK_SYSTEM_PROMPT = `You produce a structured plaintext CAD blueprint dataset for a sauna unit, strictly following the exact section structure, headers, table layout, and field labels of the reference template below. This template is only a pattern — every measurement, dimension, door type, heater spec, wall code, and remark must be replaced with values gathered from the conversation with the client. Do not invent values that contradict what the client stated; if something wasn't specified, make a reasonable default consistent with the rest of the drawing and keep the same structural format. Accessory-related requests must appear only in the REMARKS section. Door type (single door or double door) must be reflected in the ENTRY/DOOR fields. Always end the output with the exact line: "Generate the complete technical CAD drawing canvas image now."
+
+Output ONLY the final txt block, in plain text, no markdown code fences, no commentary before or after it.
+
+REFERENCE TEMPLATE (pattern only — replace all values):
+${REFERENCE_TEMPLATE}`;
+
+  // ── DOM refs ──
+  const shell = document.getElementById('shell');
+  const chatThread = document.getElementById('chatThread');
+  const chatInput = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const output = document.getElementById('output');
+  const outActions = document.getElementById('outActions');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const lightbox = document.getElementById('lightbox');
+  const lightboxImg = document.getElementById('lightboxImg');
+
+  let history = [];          // {role, content}
+  let currentImageUrl = null;
+  let busy = false;
+
+  // ── Conversation logging (via CMS server proxy — no DB key in the browser) ──
+  const sessionId = (crypto.randomUUID && crypto.randomUUID())
+    || ('sess-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+  let loggedTxtBlock = null;
+  let loggedImageGenerated = false;
+  let loggedImageUrl = null;
+  let salesPrompted = false;   // ensures the "Send to sales?" prompt shows once
+
+  // Status indicator in the header
+  const logStatusEl = document.getElementById('logStatus');
+  const logStatusText = document.getElementById('logStatusText');
+  function setLogStatus(state, text){
+    if(!logStatusEl) return;
+    logStatusEl.classList.remove('connecting', 'live', 'error');
+    logStatusEl.classList.add(state);
+    logStatusText.textContent = text;
+  }
+
+  // Connectivity check on load — pings the CMS endpoint WITHOUT writing a row, so
+  // sessions where the client never typed anything are not recorded.
+  async function checkLogStatus(){
+    setLogStatus('connecting', 'Log: connecting…');
+    try{
+      const resp = await fetch(API_BASE + '/api/conversations?action=ping');
+      if(resp.ok) setLogStatus('live', 'Log: connected');
+      else { setLogStatus('error', 'Log: error ' + resp.status); console.warn('checkLogStatus HTTP', resp.status, await resp.text()); }
+    } catch(e){ setLogStatus('error', 'Log: offline'); console.warn('checkLogStatus failed', e); }
+  }
+
+  // Fire-and-forget upsert of the whole session row through the CMS server proxy
+  // (service-role write server-side). Never throws / blocks the UI. Only records
+  // once the client has actually sent a message (no empty/abandoned sessions).
+  async function logSession(){
+    const clientSpoke = Array.isArray(history) && history.some(m => m && m.role === 'user' && String(m.content || '').trim());
+    if(!clientSpoke) return;
+    try{
+      const resp = await fetch(API_BASE + '/api/conversations?action=log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          messages: history,
+          txt_block: loggedTxtBlock,
+          image_generated: loggedImageGenerated,
+          image_url: loggedImageUrl,
+          user_agent: navigator.userAgent
+        })
+      });
+      if(resp.ok){
+        const t = new Date().toLocaleTimeString();
+        setLogStatus('live', 'Log: saved ✓ ' + t);
+      } else {
+        setLogStatus('error', 'Log: error ' + resp.status);
+        console.warn('logSession HTTP', resp.status, await resp.text());
+      }
+    } catch(e){
+      setLogStatus('error', 'Log: offline');
+      console.warn('logSession failed', e);
+    }
+  }
+
+  // The tool is open to clients — no key gate. Show the shell immediately.
+  shell.classList.add('visible');
+
+  // Initialize chat after a brief delay to ensure DOM is ready
+  setTimeout(() => {
+    initChat();
+    chatInput.focus();
+    checkLogStatus();
+  }, 50);
+
+  // ── Chat rendering ──
+  function addMsg(role, text){
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    if(role === 'bot' || role === 'user'){
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = role === 'user' ? 'YOU' : 'ASSISTANT';
+      div.appendChild(who);
+      div.appendChild(document.createTextNode(text));
+    } else {
+      div.textContent = text;
+    }
+    chatThread.appendChild(div);
+    chatThread.scrollTop = chatThread.scrollHeight;
+    return div;
+  }
+
+  function addSysMsg(text){
+    return addMsg('sys', text);
+  }
+
+  function initChat(){
+    chatThread.innerHTML = '';
+    history = [];
+    addMsg('bot', "Hi — let's put together your sauna drawing. Tell me about the room size (outer and/or inner dimensions), bench heights, ceiling height, and whether you want a single or double door. If you'd like accessories — extra LEDs, controls, window style, stone inlay, etc. — mention those too; they'll go under remarks. When I have enough and you confirm, I'll generate the drawing automatically.");
+  }
+
+  // ── Chat call (via CMS proxy; model + key chosen server-side) ──
+  async function callChatModel(messages, systemPrompt){
+    const resp = await fetch(API_BASE + '/api/openrouter?type=chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, systemPrompt })
+    });
+    const raw = await resp.text();
+    let data;
+    try{ data = JSON.parse(raw); }
+    catch(e){ throw new Error('Non-JSON response (HTTP ' + resp.status + ').'); }
+    if(!resp.ok) throw new Error(data && data.error ? data.error : ('HTTP ' + resp.status));
+    if(!data.content) throw new Error('No reply content returned.');
+    return data.content;
+  }
+
+  // ── Image generation call (via CMS proxy; model/size/ratio + key server-side) ──
+  async function callImageModel(fullPrompt){
+    const resp = await fetch(API_BASE + '/api/openrouter?type=image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: fullPrompt })
+    });
+    const raw = await resp.text();
+    let data;
+    try{ data = JSON.parse(raw); }
+    catch(e){ throw new Error('Non-JSON response from server (HTTP ' + resp.status + ').'); }
+    if(!resp.ok) throw new Error(data && data.error ? data.error : ('HTTP ' + resp.status));
+    if(!data.imageUrl) throw new Error('Model responded but no image was found in the result. Try rephrasing the brief.');
+    return data.imageUrl;
+  }
+
+  // ── Output rendering ──
+  function renderEmpty(){
+    output.innerHTML = `
+      <div class="empty-state">
+        <div class="icon-wrapper"><i class="fas fa-image"></i></div>
+        <h3>Generated drawings appear here</h3>
+        <p>Describe your sauna in the chat — your technical drawing is generated automatically once the assistant has enough detail and you confirm.</p>
+      </div>`;
+    outActions.classList.remove('visible');
+    currentImageUrl = null;
+  }
+
+  function renderScan(label){
+    output.innerHTML = `
+      <div class="scan-wrap">
+        <div class="scan"></div>
+        <div class="scan-label">${label}</div>
+      </div>`;
+    outActions.classList.remove('visible');
+  }
+
+  function renderError(message){
+    output.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'error-state';
+    const ic = document.createElement('i');
+    ic.className = 'fas fa-triangle-exclamation err-icon';
+    div.appendChild(ic);
+    div.appendChild(document.createTextNode('Generation failed:\n\n' + message));
+    output.appendChild(div);
+    outActions.classList.remove('visible');
+  }
+
+  function renderImage(url){
+    currentImageUrl = url;
+    output.innerHTML = '';
+    const frame = document.createElement('div');
+    frame.className = 'result-frame';
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = 'Generated technical CAD drawing';
+    img.addEventListener('click', () => openLightbox(url));
+    frame.appendChild(img);
+    output.appendChild(frame);
+    outActions.classList.add('visible');
+  }
+
+  // ── Lightbox ──
+  function openLightbox(url){
+    lightboxImg.src = url;
+    lightbox.classList.add('visible');
+  }
+  function closeLightbox(){
+    lightbox.classList.remove('visible');
+  }
+  lightbox.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && lightbox.classList.contains('visible')) closeLightbox();
+  });
+
+  // ── Download ──
+  downloadBtn.addEventListener('click', () => {
+    if(!currentImageUrl) return;
+    const a = document.createElement('a');
+    a.href = currentImageUrl;
+    a.download = 'cad-drawing.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  // ── Automated two-step pipeline ──
+  async function runPipeline(){
+    try{
+      // Step 1 — generate the txt block from conversation history
+      renderScan('Generating drawing dataset…');
+      const conversationDump = history.map(m => (m.role === 'user' ? 'CLIENT: ' : 'ASSISTANT: ') + m.content).join('\n\n');
+      const reply = await callChatModel(
+        [{ role: 'user', content: 'Here is the full conversation so far:\n\n' + conversationDump + '\n\nProduce the final txt block now, following the reference template structure exactly, using the gathered sauna measurements/door type and placing any accessories under REMARKS.' }],
+        TXTBLOCK_SYSTEM_PROMPT
+      );
+
+      let txtBlock = reply.trim();
+      const trigger = 'Generate the complete technical CAD drawing canvas image now.';
+      if(!txtBlock.includes(trigger)){
+        txtBlock += '\n\n' + trigger;
+      }
+      loggedTxtBlock = txtBlock;
+      logSession();
+
+      // Step 2 — send txt block to the image model
+      renderScan('Rendering technical drawing…');
+      const fullPrompt = IMAGE_SYSTEM_PREFIX + txtBlock;
+      const imageUrl = await callImageModel(fullPrompt);
+
+      renderImage(imageUrl);
+      addSysMsg('Drawing generated.');
+      loggedImageGenerated = true;
+      loggedImageUrl = imageUrl;
+      logSession();
+
+      // Feature 1 — after the image renders, offer to hand off to sales.
+      promptSendToSales();
+    } catch(err){
+      renderError(err.message || String(err));
+      addSysMsg('Error: ' + (err.message || String(err)));
+    }
+  }
+
+  // ── "Send to sales?" follow-up prompt (shown once, after a drawing renders) ──
+  function promptSendToSales(){
+    if(salesPrompted) return;
+    salesPrompted = true;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'msg bot';
+    wrap.innerHTML =
+      '<span class="who">ASSISTANT</span>' +
+      'Would you like to send this drawing to our sales team for a follow-up?' +
+      '<div style="margin-top:10px; display:flex; gap:8px;">' +
+        '<button type="button" id="sales-yes" style="border:2px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);color:#fff;">Yes, send to sales</button>' +
+        '<button type="button" id="sales-no" style="border:1.5px solid var(--line);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:transparent;color:var(--brown-deep);">No, thanks</button>' +
+      '</div>';
+    chatThread.appendChild(wrap);
+    chatThread.scrollTop = chatThread.scrollHeight;
+
+    const yes = wrap.querySelector('#sales-yes');
+    const no = wrap.querySelector('#sales-no');
+    const disable = () => { yes.disabled = true; no.disabled = true; yes.style.opacity = no.style.opacity = '0.5'; };
+
+    no.addEventListener('click', () => { disable(); addSysMsg('No problem — not sent to sales.'); });
+    yes.addEventListener('click', async () => {
+      disable();
+      try{
+        const resp = await fetch(API_BASE + '/api/conversations?action=sendToSales', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+        if(!resp.ok){ const e = await resp.json().catch(()=>({})); throw new Error(e.error || ('HTTP ' + resp.status)); }
+        addSysMsg('Sent to sales — they’ll be in touch. ✓');
+      }catch(err){
+        addSysMsg('Could not notify sales: ' + (err.message || String(err)));
+      }
+    });
+  }
+
+  // ── Send chat ──
+  async function sendChat(){
+    if(busy) return;
+    const text = chatInput.value.trim();
+    if(!text) return;
+
+    addMsg('user', text);
+    history.push({ role: 'user', content: text });
+    chatInput.value = '';
+    busy = true;
+    sendBtn.disabled = true;
+
+    const typingEl = addMsg('bot', '…');
+
+    try{
+      const reply = await callChatModel(history, SYSTEM_PROMPT);
+      typingEl.remove();
+
+      const TRIGGER_TAG = '[READY_TO_GENERATE]';
+      const triggered = reply.includes(TRIGGER_TAG);
+      const cleaned = reply.replace(TRIGGER_TAG, '').trim();
+
+      if(cleaned) addMsg('bot', cleaned);
+      history.push({ role: 'assistant', content: reply });
+      logSession();
+
+      if(triggered){
+        await runPipeline();
+      }
+    } catch(err){
+      typingEl.remove();
+      addSysMsg('Error: ' + (err.message || String(err)));
+    } finally {
+      busy = false;
+      sendBtn.disabled = false;
+      chatInput.focus();
+    }
+  }
+
+  sendBtn.addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      sendChat();
+    }
+  });
+
+  renderEmpty();
+})();
+</script>
+
+</body>
+</html>

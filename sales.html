@@ -13,19 +13,25 @@
 -->
 <style>
   :root{
-    --brown:#AF8564; --brown-deep:#8B5E3C; --brown-mid:#A67853; --brown-light:#C4A574;
+    --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#A67853; --brown-light:#C4A574;
     --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
   }
   *{ box-sizing:border-box; }
   html,body{ height:100%; }
   body{ margin:0; background:var(--bg); color:var(--black); font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5; }
   #shell{ display:flex; flex-direction:column; height:100vh; }
-  .topbar{
-    display:flex; align-items:center; gap:14px; padding:10px 20px; background:var(--panel);
-    border-bottom:1px solid var(--line); flex-shrink:0;
+  /* ── Shared page header (identical across all CMS frames) ── */
+  .page-header{
+    display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
+    border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
   }
-  .topbar .title{ font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); display:flex; align-items:center; gap:9px; }
-  .topbar .title i{ color:var(--brown-mid); }
+  .ph-icon{
+    width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
+    box-shadow:0 6px 16px rgba(166,120,83,0.32);
+  }
+  .ph-text h2{ font-size:1.08rem; font-weight:700; margin:0; color:var(--brown-deep); letter-spacing:0.2px; }
+  .ph-text p{ font-size:0.74rem; color:var(--text-dim); margin:1px 0 0; }
   .actions{ margin-left:auto; display:flex; align-items:center; gap:12px; }
   .count-pill{
     display:inline-flex; align-items:center; gap:8px; font-size:0.72rem; font-weight:600;
@@ -98,8 +104,12 @@
 </head>
 <body>
   <div id="shell">
-    <header class="topbar">
-      <div class="title"><i class="fas fa-clock-rotate-left"></i> Conversation Logs</div>
+    <header class="page-header">
+      <div class="ph-icon"><i class="fas fa-comments"></i></div>
+      <div class="ph-text">
+        <h2>Conversation Logs</h2>
+        <p>Client requirement chats &amp; generated drawings</p>
+      </div>
       <div class="actions">
         <span class="count-pill" id="countPill"><i class="fas fa-circle-notch fa-spin"></i> Loading…</span>
         <button class="btn" id="refreshBtn"><i class="fas fa-rotate-right"></i> Refresh</button>
@@ -149,10 +159,15 @@
       sessions = data.sessions || [];
       countPill.innerHTML = '<i class="fas fa-database"></i> ' + sessions.length + ' session' + (sessions.length === 1 ? '' : 's');
       renderList();
-      // Auto-open the permalinked conversation once the list is in.
-      if(deepId && !activeId){
-        const match = sessions.find(s => s.session_id === deepId);
-        if(match){ activeId = match.session_id; renderList(); renderDetail(match); }
+      // Open a conversation automatically once the list is in. A deep link
+      // (e.g. a sales rep arriving from an email permalink) wins and opens that
+      // exact conversation; otherwise, rather than leaving the pane blank, fall
+      // back to the most recent session (list is ordered updated_at desc).
+      if(!activeId){
+        let target = null;
+        if(deepId) target = sessions.find(s => s.session_id === deepId) || null;
+        if(!target) target = sessions[0] || null;
+        if(target){ activeId = target.session_id; renderList(); renderDetail(target); }
       }
     }catch(e){
       countPill.classList.add('err');

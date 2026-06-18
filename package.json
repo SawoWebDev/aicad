@@ -5,10 +5,15 @@
   "description": "SAWO CAD — role-based CMS (login, conversation logs, users, settings) + server-side OpenRouter proxy. Deploys as a Vercel app.",
   "type": "module",
   "scripts": {
+    "start": "node server.js",
     "dev": "vercel dev",
     "seed": "node scripts/seed-admin.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
   }
 }

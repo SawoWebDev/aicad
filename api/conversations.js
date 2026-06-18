@@ -14,18 +14,35 @@ import {
 
 const TABLE = 'cad_conversations';
 
+// A session is only worth recording once the client has actually said something.
+function hasClientMessage(messages) {
+  return Array.isArray(messages) && messages.some(
+    (m) => m && m.role === 'user' && String(m.content || '').trim().length > 0
+  );
+}
+
 export default async function handler(req, res) {
   const action = (req.query.action || '').toString();
 
   if (req.method === 'OPTIONS') { applyCors(res); return res.status(204).end(); }
 
   try {
+    // ── PUBLIC: lightweight connectivity check (writes nothing) ──
+    if (action === 'ping') {
+      applyCors(res);
+      return res.status(200).json({ ok: true });
+    }
+
     // ── PUBLIC: upsert a session row (replaces the old client-side anon upsert) ──
     if (action === 'log') {
       applyCors(res);
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
       const b = await readJsonBody(req);
       if (!b.session_id) return res.status(400).json({ error: 'session_id is required' });
+
+      // Don't create rows for sessions the client never interacted with — these
+      // showed up as empty "(no client message yet)" logs. Ack without writing.
+      if (!hasClientMessage(b.messages)) return res.status(200).json({ ok: true, skipped: true });
 
       const row = {
         session_id: b.session_id,
@@ -67,7 +84,9 @@ export default async function handler(req, res) {
       const svc = serviceClient();
       const { data, error } = await svc.from(TABLE).select('*').order('updated_at', { ascending: false });
       if (error) return res.status(500).json({ error: error.message });
-      return res.status(200).json({ sessions: data || [] });
+      // Hide sessions with no actual client message (incl. legacy empty rows).
+      const sessions = (data || []).filter((s) => hasClientMessage(s.messages));
+      return res.status(200).json({ sessions });
     }
 
     // ── AUTH (sales|admin): one session by session_id (conversation permalink) ──

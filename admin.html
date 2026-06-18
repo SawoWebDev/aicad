@@ -8,21 +8,38 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --brown:#AF8564; --brown-deep:#8B5E3C; --brown-mid:#A67853; --brown-light:#C4A574;
+    --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#A67853; --brown-light:#C4A574;
     --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
   }
   *{ box-sizing:border-box; }
   html,body{ height:100%; }
   body{ margin:0; background:var(--bg); color:var(--black); font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5; }
   #shell{ display:flex; flex-direction:column; height:100vh; }
-  .tabbar{ display:flex; gap:8px; padding:12px 20px; background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; align-items:center; }
-  .tab{
-    border:1.5px solid var(--line); border-radius:8px; background:transparent; color:var(--brown-deep);
-    font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.76rem; letter-spacing:0.04em;
-    text-transform:uppercase; padding:8px 16px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s ease;
+  /* ── Shared page header (identical across all CMS frames) ── */
+  .page-header{
+    display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
+    border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
   }
-  .tab:hover{ border-color:var(--brown-mid); }
-  .tab.active{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
+  .ph-icon{
+    width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
+    box-shadow:0 6px 16px rgba(166,120,83,0.32);
+  }
+  .ph-text h2{ font-size:1.08rem; font-weight:700; margin:0; color:var(--brown-deep); letter-spacing:0.2px; }
+  .ph-text p{ font-size:0.74rem; color:var(--text-dim); margin:1px 0 0; }
+  .actions{ margin-left:auto; display:flex; align-items:center; gap:12px; }
+  .count-pill{
+    display:inline-flex; align-items:center; gap:8px; font-size:0.72rem; font-weight:600;
+    text-transform:uppercase; letter-spacing:0.05em; color:var(--brown-deep);
+    padding:6px 13px; border:1px solid var(--line); border-radius:20px;
+  }
+  .btn{
+    border:2px solid var(--brown-mid); border-radius:8px; background:transparent; color:var(--brown-deep);
+    font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.74rem; letter-spacing:0.04em;
+    text-transform:uppercase; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+    transition:all 0.25s ease;
+  }
+  .btn:hover{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
   .body{ flex:1; overflow-y:auto; min-height:0; padding:24px; }
   .panel{ max-width:760px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px 26px; box-shadow:0 10px 30px rgba(139,94,60,0.06); }
   .panel + .panel{ margin-top:20px; }
@@ -30,13 +47,17 @@
   .section-label i{ color:var(--brown-mid); }
   .field-label{ display:block; font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--brown-deep); margin:14px 0 6px; }
   .hint{ font-size:0.74rem; color:var(--text-dim); margin-top:6px; line-height:1.5; }
+  .hint.set{ color:#4A9D4A; font-weight:600; }
   input,select{
     width:100%; border:1.5px solid var(--line); border-radius:8px; background:#fff; color:var(--black);
     font-family:'Montserrat',sans-serif; font-size:0.9rem; padding:10px 12px; outline:none; transition:border-color 0.2s;
   }
   input:focus,select:focus{ border-color:var(--brown-mid); }
-  .row{ display:flex; gap:14px; }
-  .row > div{ flex:1; }
+  .pass-wrap{ position:relative; } .pass-wrap input{ padding-right:44px; }
+  .eye{ position:absolute; right:6px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--text-dim); cursor:pointer; padding:6px 8px; font-size:0.9rem; }
+  .eye:hover{ color:var(--brown-mid); }
+  .row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .row > div{ flex:1; min-width:160px; }
   .primary{
     margin-top:20px; border:2px solid transparent; border-radius:8px;
     background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
@@ -63,10 +84,14 @@
 </head>
 <body>
   <div id="shell">
-    <div class="tabbar">
-      <button class="tab" data-tab="users"><i class="fas fa-users-gear"></i> Users</button>
-      <button class="tab" data-tab="settings"><i class="fas fa-gear"></i> Settings</button>
-    </div>
+    <header class="page-header">
+      <div class="ph-icon" id="phIcon"><i class="fas fa-circle-notch fa-spin"></i></div>
+      <div class="ph-text">
+        <h2 id="phTitle">Loading…</h2>
+        <p id="phSub"></p>
+      </div>
+      <div class="actions" id="phActions"></div>
+    </header>
     <div class="body">
       <div id="gate" class="gate-msg hidden"><i class="fas fa-ban"></i> Admins only.</div>
 
@@ -76,16 +101,32 @@
           <div class="section-label"><i class="fas fa-user-plus"></i> Create user</div>
           <div class="row">
             <div>
-              <label class="field-label">Email</label>
-              <input id="nuEmail" type="email" placeholder="person@sawo.com" />
+              <label class="field-label">Username</label>
+              <input id="nuUser" type="text" placeholder="username" autocapitalize="none" spellcheck="false" />
             </div>
             <div>
-              <label class="field-label">Password (min 8)</label>
-              <input id="nuPass" type="password" placeholder="••••••••" />
+              <label class="field-label">Email (for password reset)</label>
+              <input id="nuEmail" type="email" placeholder="person@sawo.com" />
             </div>
-            <div style="flex:0 0 160px;">
+            <div style="flex:0 0 150px;">
               <label class="field-label">Role</label>
               <select id="nuRole"><option value="sales">sales</option><option value="admin">admin</option></select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label class="field-label">Password (min 8)</label>
+              <div class="pass-wrap">
+                <input id="nuPass" type="password" placeholder="••••••••" autocomplete="new-password" />
+                <button class="eye" type="button" data-eye="nuPass" tabindex="-1"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div id="nuConfirmWrap" class="hidden">
+              <label class="field-label">Confirm password</label>
+              <div class="pass-wrap">
+                <input id="nuConfirm" type="password" placeholder="••••••••" autocomplete="new-password" />
+                <button class="eye" type="button" data-eye="nuConfirm" tabindex="-1"><i class="fas fa-eye"></i></button>
+              </div>
             </div>
           </div>
           <button class="primary" id="createUserBtn"><i class="fas fa-user-plus"></i> Create user</button>
@@ -94,8 +135,8 @@
         <div class="panel">
           <div class="section-label"><i class="fas fa-users"></i> Existing users</div>
           <table>
-            <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
-            <tbody id="userRows"><tr><td colspan="5" style="color:var(--text-dim);">Loading…</td></tr></tbody>
+            <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="userRows"><tr><td colspan="6" style="color:var(--text-dim);">Loading…</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -105,24 +146,25 @@
         <div class="panel">
           <div class="section-label"><i class="fas fa-robot"></i> OpenRouter &amp; models</div>
           <label class="field-label">OpenRouter API key</label>
-          <input id="sKey" type="password" placeholder="leave blank to keep current" autocomplete="off" />
+          <div class="pass-wrap">
+            <input id="sKey" type="password" autocomplete="off" />
+            <button class="eye" type="button" data-eye="sKey" tabindex="-1"><i class="fas fa-eye"></i></button>
+          </div>
           <div class="hint" id="keyHint">Stored server-side only; used for chat + image generation. Never sent to the browser.</div>
 
           <label class="field-label">Chat model</label>
-          <input id="sChatModel" type="text" list="chatModels" placeholder="anthropic/claude-opus-4.6" />
-          <datalist id="chatModels">
-            <option value="anthropic/claude-opus-4.6">Claude Opus 4.6</option>
-            <option value="openai/gpt-5.4">GPT-5.4</option>
-            <option value="google/gemini-3-pro-preview">Gemini 3 Pro</option>
-          </datalist>
+          <select id="sChatModel">
+            <option value="anthropic/claude-opus-4.6">Claude Opus 4.6 — anthropic/claude-opus-4.6</option>
+            <option value="openai/gpt-5.4">GPT-5.4 — openai/gpt-5.4</option>
+            <option value="google/gemini-3-pro-preview">Gemini 3 Pro — google/gemini-3-pro-preview</option>
+          </select>
 
           <label class="field-label">Image model</label>
-          <input id="sImageModel" type="text" list="imageModels" placeholder="google/gemini-3-pro-image-preview" />
-          <datalist id="imageModels">
-            <option value="google/gemini-3-pro-image-preview">Nano Banana Pro</option>
-            <option value="google/gemini-3.1-flash-image-preview">Nano Banana 2</option>
-            <option value="google/gemini-2.5-flash-image">Nano Banana</option>
-          </datalist>
+          <select id="sImageModel">
+            <option value="google/gemini-3-pro-image-preview">Nano Banana Pro — google/gemini-3-pro-image-preview</option>
+            <option value="google/gemini-3.1-flash-image-preview">Nano Banana 2 — google/gemini-3.1-flash-image-preview</option>
+            <option value="google/gemini-2.5-flash-image">Nano Banana — google/gemini-2.5-flash-image</option>
+          </select>
 
           <div class="row">
             <div>
@@ -162,29 +204,67 @@
 <script>
 (function(){
   const esc = CMS.esc, fmt = CMS.fmt;
-  const tabs = document.querySelectorAll('.tab');
   const usersTab = document.getElementById('usersTab');
   const settingsTab = document.getElementById('settingsTab');
   const gate = document.getElementById('gate');
-  const initial = new URLSearchParams(location.search).get('tab') || 'users';
+  const phIcon = document.getElementById('phIcon');
+  const phTitle = document.getElementById('phTitle');
+  const phSub = document.getElementById('phSub');
+  const phActions = document.getElementById('phActions');
+  // The hosting shell loads this page as admin.html?tab=users or ?tab=settings.
+  const tab = new URLSearchParams(location.search).get('tab') === 'settings' ? 'settings' : 'users';
 
-  function showTab(name){
-    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-    usersTab.classList.toggle('hidden', name !== 'users');
-    settingsTab.classList.toggle('hidden', name !== 'settings');
-    if(name === 'users') loadUsers(); else loadSettings();
+  const TITLES = {
+    users:    { icon:'fa-users-gear', label:'User Management', sub:'Create and manage CMS accounts' },
+    settings: { icon:'fa-gear',       label:'Settings',        sub:'OpenRouter, models & sales notifications' },
+  };
+
+  // Password reveal eye toggles (shared across the page).
+  document.querySelectorAll('.eye').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.eye);
+      const showing = inp.type === 'text';
+      inp.type = showing ? 'password' : 'text';
+      btn.innerHTML = '<i class="fas fa-eye' + (showing ? '' : '-slash') + '"></i>';
+    });
+  });
+
+  function setTitle(t){
+    const it = TITLES[t];
+    phIcon.innerHTML = '<i class="fas ' + it.icon + '"></i>';
+    phTitle.textContent = it.label;
+    phSub.textContent = it.sub;
+    phActions.innerHTML = '';
+    if(t === 'users'){
+      const btn = document.createElement('button');
+      btn.className = 'btn'; btn.innerHTML = '<i class="fas fa-rotate-right"></i> Refresh';
+      btn.addEventListener('click', loadUsers);
+      phActions.appendChild(btn);
+    }
   }
-  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+  function gateOut(){
+    usersTab.classList.add('hidden'); settingsTab.classList.add('hidden');
+    phIcon.innerHTML = '<i class="fas fa-ban"></i>';
+    phTitle.textContent = 'Admins only';
+    phSub.textContent = 'You need the admin role to view this page.';
+    phActions.innerHTML = '';
+    gate.classList.remove('hidden');
+  }
 
-  function gateOut(){ usersTab.classList.add('hidden'); settingsTab.classList.add('hidden'); document.querySelector('.tabbar').classList.add('hidden'); gate.classList.remove('hidden'); }
+  // ── Confirm-password reveal-on-typing (create user) ──
+  const nuPass = document.getElementById('nuPass');
+  const nuConfirmWrap = document.getElementById('nuConfirmWrap');
+  nuPass.addEventListener('input', () => {
+    nuConfirmWrap.classList.toggle('hidden', nuPass.value.length === 0);
+  });
 
   // ── Users ──
   async function loadUsers(){
     const rows = document.getElementById('userRows');
-    rows.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);">Loading…</td></tr>';
+    rows.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);">Loading…</td></tr>';
     try{
       const { users } = await CMS.get('/api/admin?resource=users');
-      if(!users.length){ rows.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);">No users.</td></tr>'; return; }
+      if(!users.length){ rows.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);">No users.</td></tr>'; return; }
       rows.innerHTML = '';
       users.forEach(u => {
         const tr = document.createElement('tr');
@@ -192,7 +272,8 @@
         const statusPill = u.active === false ? '<span class="pill off">inactive</span>' : '<span class="pill on">active</span>';
         const toggleRole = u.role === 'admin' ? 'sales' : 'admin';
         tr.innerHTML =
-          '<td>' + esc(u.email || '') + '</td>' +
+          '<td><b>' + esc(u.username || '—') + '</b></td>' +
+          '<td style="color:var(--text-dim);">' + esc(u.email || '') + '</td>' +
           '<td><span class="pill ' + roleClass + '">' + esc(u.role || '—') + '</span></td>' +
           '<td>' + statusPill + '</td>' +
           '<td style="color:var(--text-dim);">' + esc(fmt(u.created_at)) + '</td>' +
@@ -205,7 +286,7 @@
       rows.querySelectorAll('.mini').forEach(b => b.addEventListener('click', () => patchUser(b.dataset)));
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
-      rows.innerHTML = '<tr><td colspan="5" class="err" style="color:#C9302C;">' + esc(e.message) + '</td></tr>';
+      rows.innerHTML = '<tr><td colspan="6" class="err" style="color:#C9302C;">' + esc(e.message) + '</td></tr>';
     }
   }
 
@@ -219,26 +300,40 @@
 
   document.getElementById('createUserBtn').addEventListener('click', async () => {
     const msg = document.getElementById('userMsg'); msg.className = 'msg-line'; msg.textContent = '';
+    const pass = document.getElementById('nuPass').value;
+    const confirm = document.getElementById('nuConfirm').value;
+    if(pass.length < 8){ msg.className = 'msg-line err'; msg.textContent = 'Password must be at least 8 characters.'; return; }
+    if(pass !== confirm){ msg.className = 'msg-line err'; msg.textContent = 'Passwords do not match.'; return; }
     const btn = document.getElementById('createUserBtn'); btn.disabled = true;
     try{
       await CMS.send('POST', '/api/admin?resource=users', {
+        username: document.getElementById('nuUser').value.trim(),
         email: document.getElementById('nuEmail').value.trim(),
-        password: document.getElementById('nuPass').value,
+        password: pass,
         role: document.getElementById('nuRole').value,
       });
       msg.className = 'msg-line ok'; msg.textContent = 'User created.';
-      document.getElementById('nuEmail').value = ''; document.getElementById('nuPass').value = '';
+      document.getElementById('nuUser').value = '';
+      document.getElementById('nuEmail').value = '';
+      document.getElementById('nuPass').value = '';
+      document.getElementById('nuConfirm').value = '';
+      nuConfirmWrap.classList.add('hidden');
       loadUsers();
     }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
     finally{ btn.disabled = false; }
   });
 
-  // ── Settings ──
+  // ── Settings: API key masked-but-present handling ──
+  const keyInput = document.getElementById('sKey');
+  const KEY_SENTINEL = '••••••••••••••••';
+  // If the admin edits the field, it becomes "dirty" and we save the typed value.
+  keyInput.addEventListener('input', () => { keyInput.dataset.dirty = '1'; });
+
   async function loadSettings(){
     try{
       const { settings } = await CMS.get('/api/admin?resource=settings');
-      document.getElementById('sChatModel').value = settings.chat_model || '';
-      document.getElementById('sImageModel').value = settings.image_model || '';
+      document.getElementById('sChatModel').value = settings.chat_model || 'anthropic/claude-opus-4.6';
+      document.getElementById('sImageModel').value = settings.image_model || 'google/gemini-3-pro-image-preview';
       document.getElementById('sImageSize').value = settings.image_size || '2K';
       document.getElementById('sImageRatio').value = settings.image_aspect_ratio || '16:9';
       document.getElementById('sSalesEmail').value = settings.sales_notification_email || '';
@@ -246,9 +341,21 @@
       document.getElementById('sMailPort').value = settings.mail_smtp_port || '';
       document.getElementById('sMailUser').value = settings.mail_smtp_user || '';
       document.getElementById('sMailFrom').value = settings.mail_from_address || '';
-      document.getElementById('keyHint').textContent = settings.openrouter_api_key_set
-        ? 'A key is currently set. Leave blank to keep it, or type a new one to replace it.'
-        : 'No key set yet — paste your OpenRouter key. Stored server-side only.';
+
+      const hint = document.getElementById('keyHint');
+      keyInput.dataset.dirty = '0';
+      if(settings.openrouter_api_key_set){
+        // Show a masked placeholder so it reads as "a key is attached" without
+        // ever exposing the real key. Untouched = keep existing on save.
+        keyInput.value = KEY_SENTINEL;
+        hint.className = 'hint set';
+        hint.innerHTML = '<i class="fas fa-circle-check"></i> A key is configured (hidden). Leave as-is to keep it, or clear it and type a new key to replace.';
+      } else {
+        keyInput.value = '';
+        keyInput.type = 'password';
+        hint.className = 'hint';
+        hint.textContent = 'No key set yet — paste your OpenRouter key. Stored server-side only, never sent to the browser.';
+      }
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
       const msg = document.getElementById('settingsMsg'); msg.className = 'msg-line err'; msg.textContent = e.message;
@@ -258,11 +365,13 @@
   document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
     const msg = document.getElementById('settingsMsg'); msg.className = 'msg-line'; msg.textContent = '';
     const btn = document.getElementById('saveSettingsBtn'); btn.disabled = true;
+    // Only send a new key if the admin actually typed one; otherwise blank = keep.
+    const keyVal = keyInput.dataset.dirty === '1' ? keyInput.value : '';
     try{
       await CMS.send('PUT', '/api/admin?resource=settings', {
-        openrouter_api_key: document.getElementById('sKey').value,           // blank = keep
-        chat_model: document.getElementById('sChatModel').value.trim(),
-        image_model: document.getElementById('sImageModel').value.trim(),
+        openrouter_api_key: keyVal,                                          // blank = keep
+        chat_model: document.getElementById('sChatModel').value,
+        image_model: document.getElementById('sImageModel').value,
         image_size: document.getElementById('sImageSize').value,
         image_aspect_ratio: document.getElementById('sImageRatio').value,
         sales_notification_email: document.getElementById('sSalesEmail').value.trim(),
@@ -273,13 +382,16 @@
         mail_from_address: document.getElementById('sMailFrom').value.trim(),
       });
       msg.className = 'msg-line ok'; msg.textContent = 'Settings saved.';
-      document.getElementById('sKey').value = ''; document.getElementById('sMailPass').value = '';
+      document.getElementById('sMailPass').value = '';
       loadSettings();
     }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
     finally{ btn.disabled = false; }
   });
 
-  showTab(initial === 'settings' ? 'settings' : 'users');
+  // ── Render the requested tab only (navigation lives in the shell header) ──
+  setTitle(tab);
+  if(tab === 'settings'){ settingsTab.classList.remove('hidden'); loadSettings(); }
+  else { usersTab.classList.remove('hidden'); loadUsers(); }
 })();
 </script>
 </body>

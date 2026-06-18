@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --brown:#AF8564; --brown-deep:#8B5E3C; --brown-mid:#A67853; --brown-light:#C4A574;
+    --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#A67853; --brown-light:#C4A574;
     --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
   }
   *{ box-sizing:border-box; }
@@ -41,6 +41,14 @@
     padding:11px 13px; outline:none; transition:border-color 0.2s;
   }
   input:focus{ border-color:var(--brown-mid); }
+  .pass-wrap{ position:relative; }
+  .pass-wrap input{ padding-right:44px; }
+  .eye{
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    background:transparent; border:none; color:var(--text-dim); cursor:pointer;
+    padding:6px 8px; font-size:0.9rem;
+  }
+  .eye:hover{ color:var(--brown-mid); }
   button.primary{
     width:100%; margin-top:20px; border:2px solid transparent; border-radius:8px;
     background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);
@@ -52,10 +60,17 @@
   button.primary:hover{ background:#fff; color:var(--brown-deep); border-color:var(--brown-mid); }
   button.primary:disabled{ opacity:0.6; cursor:not-allowed; }
   .err{ font-size:0.82rem; color:#C9302C; margin-top:14px; min-height:16px; font-weight:600; }
+  .ok{ font-size:0.82rem; color:#4A9D4A; margin-top:14px; min-height:16px; font-weight:600; }
   .note{
     font-size:0.72rem; color:var(--text-dim); margin-top:16px;
     display:flex; align-items:center; gap:6px; justify-content:center; line-height:1.5;
   }
+  .linkrow{ margin-top:14px; text-align:right; }
+  .linkbtn{
+    background:none; border:none; color:var(--brown-mid); cursor:pointer;
+    font-family:'Montserrat',sans-serif; font-size:0.76rem; font-weight:600; padding:0;
+  }
+  .linkbtn:hover{ text-decoration:underline; color:var(--brown-deep); }
   .setup-banner{
     background:rgba(166,120,83,0.10); border:1px solid var(--line); border-radius:10px;
     padding:11px 13px; font-size:0.78rem; color:var(--brown-deep); margin-bottom:6px;
@@ -72,12 +87,27 @@
     <form id="loginForm" class="hidden" autocomplete="on">
       <h1>SAWO CAD CMS</h1>
       <p class="sub">Sign in to view conversation logs and settings.</p>
-      <label for="loginEmail"><i class="fas fa-envelope"></i> Email</label>
-      <input id="loginEmail" type="email" placeholder="you@sawo.com" autocomplete="username" />
+      <label for="loginUser"><i class="fas fa-user"></i> Username</label>
+      <input id="loginUser" type="text" placeholder="your username" autocomplete="username" autocapitalize="none" spellcheck="false" />
       <label for="loginPass"><i class="fas fa-lock"></i> Password</label>
-      <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <div class="pass-wrap">
+        <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        <button class="eye" type="button" data-eye="loginPass" tabindex="-1"><i class="fas fa-eye"></i></button>
+      </div>
+      <div class="linkrow"><button class="linkbtn" type="button" id="forgotLink">Forgot password?</button></div>
       <button class="primary" type="submit"><i class="fas fa-arrow-right-to-bracket"></i> Sign in</button>
       <div class="err" id="loginErr"></div>
+    </form>
+
+    <!-- ── FORGOT PASSWORD ── -->
+    <form id="forgotForm" class="hidden" autocomplete="off">
+      <h1>Reset password</h1>
+      <p class="sub">Enter your username — we'll email a reset link to the address on file.</p>
+      <label for="forgotUser"><i class="fas fa-user"></i> Username</label>
+      <input id="forgotUser" type="text" placeholder="your username" autocapitalize="none" spellcheck="false" />
+      <button class="primary" type="submit"><i class="fas fa-paper-plane"></i> Send reset link</button>
+      <div class="ok" id="forgotMsg"></div>
+      <div class="linkrow" style="text-align:center; margin-top:16px;"><button class="linkbtn" type="button" id="backToLogin">&larr; Back to sign in</button></div>
     </form>
 
     <!-- ── FIRST-RUN CREATE USER ── -->
@@ -89,10 +119,22 @@
         <span>This setup screen disables itself automatically once a user exists. After this,
         add more users from the admin <b>Users</b> page.</span>
       </div>
-      <label for="setupEmail"><i class="fas fa-envelope"></i> Admin email</label>
+      <label for="setupUser"><i class="fas fa-user"></i> Username</label>
+      <input id="setupUser" type="text" placeholder="admin" autocapitalize="none" spellcheck="false" />
+      <label for="setupEmail"><i class="fas fa-envelope"></i> Email (for password reset)</label>
       <input id="setupEmail" type="email" placeholder="admin@sawo.com" />
       <label for="setupPass"><i class="fas fa-lock"></i> Password (min 8 chars)</label>
-      <input id="setupPass" type="password" placeholder="••••••••" />
+      <div class="pass-wrap">
+        <input id="setupPass" type="password" placeholder="••••••••" />
+        <button class="eye" type="button" data-eye="setupPass" tabindex="-1"><i class="fas fa-eye"></i></button>
+      </div>
+      <div id="setupConfirmWrap" class="hidden">
+        <label for="setupConfirm"><i class="fas fa-lock"></i> Confirm password</label>
+        <div class="pass-wrap">
+          <input id="setupConfirm" type="password" placeholder="••••••••" />
+          <button class="eye" type="button" data-eye="setupConfirm" tabindex="-1"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
       <button class="primary" type="submit"><i class="fas fa-user-shield"></i> Create admin &amp; continue</button>
       <div class="err" id="setupErr"></div>
     </form>
@@ -106,25 +148,44 @@
   const params = new URLSearchParams(location.search);
   const redirect = params.get('redirect') || '/app';
 
-  const loginForm = document.getElementById('loginForm');
-  const setupForm = document.getElementById('setupForm');
-  const loading   = document.getElementById('loading');
-  const loginErr  = document.getElementById('loginErr');
-  const setupErr  = document.getElementById('setupErr');
+  const loginForm  = document.getElementById('loginForm');
+  const forgotForm = document.getElementById('forgotForm');
+  const setupForm  = document.getElementById('setupForm');
+  const loading    = document.getElementById('loading');
+  const loginErr   = document.getElementById('loginErr');
+  const setupErr   = document.getElementById('setupErr');
+  const forgotMsg  = document.getElementById('forgotMsg');
 
   function show(el){ el.classList.remove('hidden'); }
   function hide(el){ el.classList.add('hidden'); }
 
+  // Password reveal eye toggles.
+  document.querySelectorAll('.eye').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.eye);
+      const showing = inp.type === 'text';
+      inp.type = showing ? 'password' : 'text';
+      btn.innerHTML = '<i class="fas fa-eye' + (showing ? '' : '-slash') + '"></i>';
+    });
+  });
+
+  // Confirm-password field appears only once the password has content.
+  const setupPass = document.getElementById('setupPass');
+  const setupConfirmWrap = document.getElementById('setupConfirmWrap');
+  setupPass.addEventListener('input', () => {
+    if(setupPass.value.length) show(setupConfirmWrap);
+    else hide(setupConfirmWrap);
+  });
+
   async function init(){
     try{
-      // Already signed in? Go straight to the target.
       const s = await fetch('/api/auth?action=session').then(r=>r.json());
       if(s.authenticated){ location.replace(redirect); return; }
 
       const st = await fetch('/api/auth?action=setupStatus').then(r=>r.json());
       hide(loading);
-      if(st.needsSetup){ show(setupForm); document.getElementById('setupEmail').focus(); }
-      else { show(loginForm); document.getElementById('loginEmail').focus(); }
+      if(st.needsSetup){ show(setupForm); document.getElementById('setupUser').focus(); }
+      else { show(loginForm); document.getElementById('loginUser').focus(); }
     }catch(e){
       hide(loading); show(loginForm);
       loginErr.textContent = 'Could not reach the server.';
@@ -134,12 +195,12 @@
   loginForm.addEventListener('submit', async (e)=>{
     e.preventDefault();
     loginErr.textContent = '';
-    const btn = loginForm.querySelector('button'); btn.disabled = true;
+    const btn = loginForm.querySelector('button.primary'); btn.disabled = true;
     try{
       const resp = await fetch('/api/auth?action=login', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          email: document.getElementById('loginEmail').value.trim(),
+          username: document.getElementById('loginUser').value.trim(),
           password: document.getElementById('loginPass').value,
         })
       });
@@ -149,16 +210,39 @@
     }catch(err){ loginErr.textContent = 'Network error.'; btn.disabled=false; }
   });
 
+  // Forgot-password flow.
+  document.getElementById('forgotLink').addEventListener('click', ()=>{ hide(loginForm); show(forgotForm); document.getElementById('forgotUser').focus(); });
+  document.getElementById('backToLogin').addEventListener('click', ()=>{ hide(forgotForm); show(loginForm); });
+  forgotForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    forgotMsg.textContent = '';
+    const btn = forgotForm.querySelector('button.primary'); btn.disabled = true;
+    try{
+      await fetch('/api/auth?action=requestReset', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username: document.getElementById('forgotUser').value.trim() })
+      });
+      // Always a generic success (no username enumeration).
+      forgotMsg.textContent = 'If that username exists, a reset link has been emailed.';
+    }catch(err){ forgotMsg.textContent = 'If that username exists, a reset link has been emailed.'; }
+    finally{ btn.disabled = false; }
+  });
+
   setupForm.addEventListener('submit', async (e)=>{
     e.preventDefault();
     setupErr.textContent = '';
-    const btn = setupForm.querySelector('button'); btn.disabled = true;
+    const pass = document.getElementById('setupPass').value;
+    const confirm = document.getElementById('setupConfirm').value;
+    if(pass.length < 8){ setupErr.textContent = 'Password must be at least 8 characters.'; return; }
+    if(pass !== confirm){ setupErr.textContent = 'Passwords do not match.'; return; }
+    const btn = setupForm.querySelector('button.primary'); btn.disabled = true;
     try{
       const resp = await fetch('/api/auth?action=setup', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
+          username: document.getElementById('setupUser').value.trim(),
           email: document.getElementById('setupEmail').value.trim(),
-          password: document.getElementById('setupPass').value,
+          password: pass,
         })
       });
       const data = await resp.json();

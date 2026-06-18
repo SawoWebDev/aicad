@@ -112,12 +112,15 @@ export async function getSession(req, res) {
   const svc = serviceClient();
   const { data: profile } = await svc
     .from('profiles')
-    .select('role, active')
+    .select('role, active, username')
     .eq('id', user.id)
     .maybeSingle();
 
   if (!profile || profile.active === false) return null;
-  return { user, role: profile.role, active: profile.active, email: user.email };
+  return {
+    user, role: profile.role, active: profile.active,
+    username: profile.username || null, email: user.email,
+  };
 }
 
 // Guard for API endpoints: returns the session or writes a 401/403 and returns null.

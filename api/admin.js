@@ -29,11 +29,12 @@ export default async function handler(req, res) {
       if (req.method === 'GET') {
         const { data: list, error } = await svc.auth.admin.listUsers({ page: 1, perPage: 1000 });
         if (error) return res.status(500).json({ error: error.message });
-        const { data: profiles } = await svc.from('profiles').select('id, role, active, created_at');
+        const { data: profiles } = await svc.from('profiles').select('id, username, role, active, created_at');
         const byId = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
         const users = (list?.users || []).map((u) => ({
           id: u.id,
           email: u.email,
+          username: byId[u.id]?.username || null,
           created_at: u.created_at,
           role: byId[u.id]?.role || null,
           active: byId[u.id]?.active ?? null,
@@ -42,8 +43,8 @@ export default async function handler(req, res) {
       }
 
       if (req.method === 'POST') {
-        const { email, password, role } = await readJsonBody(req);
-        if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
+        const { username, email, password, role } = await readJsonBody(req);
+        if (!username || !email || !password) return res.status(400).json({ error: 'Username, email, and password are required.' });
         if (!['admin', 'sales'].includes(role)) return res.status(400).json({ error: 'role must be admin or sales.' });
         if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
@@ -53,10 +54,11 @@ export default async function handler(req, res) {
         if (cErr || !created?.user) return res.status(400).json({ error: cErr?.message || 'Could not create user.' });
 
         const { error: pErr } = await svc.from('profiles')
-          .insert({ id: created.user.id, role, active: true });
+          .insert({ id: created.user.id, username, role, active: true });
         if (pErr) {
           await svc.auth.admin.deleteUser(created.user.id);
-          return res.status(400).json({ error: 'Could not create profile: ' + pErr.message });
+          const dup = /duplicate|unique/i.test(pErr.message || '');
+          return res.status(400).json({ error: dup ? 'That username is already taken.' : ('Could not create profile: ' + pErr.message) });
         }
         return res.status(200).json({ ok: true, id: created.user.id });
       }

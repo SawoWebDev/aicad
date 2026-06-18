@@ -9,10 +9,15 @@ OpenRouter proxy. Plain HTML + vanilla JS + Node serverless functions; no build 
 
 ## 1. First-run bootstrap (READ THIS) — create-user → login auto-switch
 
+> **Login is by USERNAME + password.** The email collected at user creation is used
+> only for password reset (the "Forgot password?" link). Each profile has a unique,
+> case-insensitive `username`.
+
 There is no user on a fresh deploy, so the landing page adapts itself:
 
-- **While zero users exist**, opening `/` shows a **Create User** form. Submitting it
-  creates the first **admin** (Supabase Auth user + `profiles` row) and logs you in.
+- **While zero users exist**, opening `/` shows a **Create User** form (username, email,
+  password + confirm). Submitting it creates the first **admin** (Supabase Auth user +
+  `profiles` row with the username) and logs you in.
 - **Once at least one user exists**, `/` automatically shows the normal **Login** form,
   and the setup endpoint (`/api/auth?action=setup`) refuses with 403. This switch is
   automatic — there is nothing to flip by hand.
@@ -52,8 +57,17 @@ edited from the admin **Settings** page.
 
 Run `migration.sql` once in the Supabase SQL editor of project `jhymuevfcrqofyqtbkrs`.
 It extends `cad_conversations` (`sent_to_sales`, `sent_to_sales_at`), creates `profiles`
-and `settings`, enables RLS, and drops the old open `anon read` policy. After migrating,
-store the **rotated** OpenRouter key via the Settings page.
+(now including a unique `username`) and `settings`, enables RLS, and drops the old open
+`anon read` policy. After migrating, store the **rotated** OpenRouter key via the Settings page.
+
+> **If you already ran the earlier migration** (no `username` column), run this increment:
+> ```sql
+> alter table public.profiles add column if not exists username text;
+> create unique index if not exists profiles_username_lower_key on public.profiles (lower(username));
+> -- Any admin created before usernames existed has none yet → give it one so it can log in:
+> update public.profiles set username = 'admin' where username is null;
+> ```
+> Adjust `'admin'` to the username you want. (Login is by username now.)
 
 > NOTE: this Supabase project is not reachable from the assistant's Supabase MCP
 > connection, so the migration/seed must be applied manually (or grant MCP access).

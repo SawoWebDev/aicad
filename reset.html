@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set a new password — SAWO CAD CMS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#A67853; --brown-light:#C4A574;
+    --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{ margin:0; background:var(--bg); color:var(--black); font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .box{ background:var(--panel); border-radius:18px; border-top:5px solid var(--brown-mid); padding:38px 34px; width:400px; max-width:100%; box-shadow:0 25px 70px rgba(139,94,60,0.18); text-align:center; }
+  .logo{ height:40px; width:auto; margin-bottom:20px; }
+  h1{ font-size:1.4rem; font-weight:700; margin:0 0 6px; background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .sub{ font-size:0.9rem; color:var(--text-dim); margin:0 0 24px; }
+  label{ display:flex; align-items:center; gap:7px; font-size:0.74rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--brown-deep); margin:14px 0 7px; }
+  input{ width:100%; border:1.5px solid var(--line); border-radius:8px; background:#fff; color:var(--black); font-family:'Montserrat',sans-serif; font-size:0.95rem; padding:11px 13px; outline:none; transition:border-color 0.2s; }
+  input:focus{ border-color:var(--brown-mid); }
+  .pass-wrap{ position:relative; } .pass-wrap input{ padding-right:44px; }
+  .eye{ position:absolute; right:6px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--text-dim); cursor:pointer; padding:6px 8px; font-size:0.9rem; }
+  .eye:hover{ color:var(--brown-mid); }
+  button.primary{ width:100%; margin-top:20px; border:2px solid transparent; border-radius:8px; background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.9rem; letter-spacing:0.06em; text-transform:uppercase; padding:12px 0; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:9px; transition:all 0.3s ease; }
+  button.primary:hover{ background:#fff; color:var(--brown-deep); border-color:var(--brown-mid); }
+  button.primary:disabled{ opacity:0.6; cursor:not-allowed; }
+  .err{ font-size:0.82rem; color:#C9302C; margin-top:14px; min-height:16px; font-weight:600; }
+  .ok{ font-size:0.82rem; color:#4A9D4A; margin-top:14px; min-height:16px; font-weight:600; }
+  .hidden{ display:none; }
+  a.back{ color:var(--brown-mid); font-weight:600; font-size:0.8rem; text-decoration:none; }
+  a.back:hover{ text-decoration:underline; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <img class="logo" src="https://www.sawo.com/wp-content/uploads/2025/12/SAWO-logo.png" alt="SAWO" />
+
+    <form id="resetForm" class="hidden" autocomplete="off">
+      <h1>Set a new password</h1>
+      <p class="sub">Choose a new password for your account.</p>
+      <label for="newPass"><i class="fas fa-lock"></i> New password (min 8 chars)</label>
+      <div class="pass-wrap">
+        <input id="newPass" type="password" placeholder="••••••••" />
+        <button class="eye" type="button" data-eye="newPass" tabindex="-1"><i class="fas fa-eye"></i></button>
+      </div>
+      <div id="confirmWrap" class="hidden">
+        <label for="confirmPass"><i class="fas fa-lock"></i> Confirm new password</label>
+        <div class="pass-wrap">
+          <input id="confirmPass" type="password" placeholder="••••••••" />
+          <button class="eye" type="button" data-eye="confirmPass" tabindex="-1"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
+      <button class="primary" type="submit"><i class="fas fa-key"></i> Update password</button>
+      <div class="err" id="resetErr"></div>
+    </form>
+
+    <div id="badLink" class="hidden">
+      <h1>Link problem</h1>
+      <p class="sub" id="badLinkMsg">This password-reset link is invalid or has expired.</p>
+      <a class="back" href="/login">&larr; Back to sign in</a>
+    </div>
+
+    <div id="done" class="hidden">
+      <h1>Password updated</h1>
+      <p class="sub">You can now sign in with your new password.</p>
+      <a class="back" href="/login">&rarr; Go to sign in</a>
+    </div>
+
+    <div id="loading" class="sub"><i class="fas fa-circle-notch fa-spin"></i> Loading…</div>
+  </div>
+
+<script>
+(function(){
+  // Supabase delivers the recovery token in the URL hash (#access_token=…&type=recovery).
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(location.search);
+  const accessToken = hash.get('access_token') || query.get('access_token');
+
+  const resetForm = document.getElementById('resetForm');
+  const badLink = document.getElementById('badLink');
+  const done = document.getElementById('done');
+  const loading = document.getElementById('loading');
+  const resetErr = document.getElementById('resetErr');
+
+  function show(el){ el.classList.remove('hidden'); }
+  function hide(el){ el.classList.add('hidden'); }
+
+  document.querySelectorAll('.eye').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.eye);
+      const showing = inp.type === 'text';
+      inp.type = showing ? 'password' : 'text';
+      btn.innerHTML = '<i class="fas fa-eye' + (showing ? '' : '-slash') + '"></i>';
+    });
+  });
+
+  const newPass = document.getElementById('newPass');
+  const confirmWrap = document.getElementById('confirmWrap');
+  newPass.addEventListener('input', () => {
+    if(newPass.value.length) show(confirmWrap); else hide(confirmWrap);
+  });
+
+  hide(loading);
+  if(!accessToken){
+    show(badLink);
+    document.getElementById('badLinkMsg').textContent =
+      'This link is missing its reset token. Request a new reset link from the sign-in page.';
+  } else {
+    show(resetForm);
+    newPass.focus();
+  }
+
+  resetForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    resetErr.textContent = '';
+    const pass = newPass.value;
+    const confirm = document.getElementById('confirmPass').value;
+    if(pass.length < 8){ resetErr.textContent = 'Password must be at least 8 characters.'; return; }
+    if(pass !== confirm){ resetErr.textContent = 'Passwords do not match.'; return; }
+    const btn = resetForm.querySelector('button.primary'); btn.disabled = true;
+    try{
+      const resp = await fetch('/api/auth?action=completeReset', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ access_token: accessToken, password: pass })
+      });
+      const data = await resp.json();
+      if(!resp.ok){ resetErr.textContent = data.error || 'Could not update password.'; btn.disabled = false; return; }
+      hide(resetForm); show(done);
+    }catch(err){ resetErr.textContent = 'Network error.'; btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

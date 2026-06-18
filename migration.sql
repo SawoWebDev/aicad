@@ -10,13 +10,18 @@ alter table public.cad_conversations
   add column if not exists sent_to_sales boolean not null default false,
   add column if not exists sent_to_sales_at timestamptz;
 
--- 2. Profiles — role lives here (Supabase Auth carries no custom role) ------
+-- 2. Profiles — role + username live here (Supabase Auth carries no custom role)
+--    Login is by USERNAME; the email on auth.users is kept only for password reset.
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  username text,
   role text not null check (role in ('admin','sales')),
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+-- Add username to an already-created profiles table + enforce case-insensitive uniqueness.
+alter table public.profiles add column if not exists username text;
+create unique index if not exists profiles_username_lower_key on public.profiles (lower(username));
 
 -- 3. Settings — single row (id = 1), managed from the admin Settings page ---
 create table if not exists public.settings (
