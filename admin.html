@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — SAWO CAD CMS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brown:#AF8564; --brown-deep:#8B5E3C; --brown-mid:#A67853; --brown-light:#C4A574;
+    --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{ margin:0; background:var(--bg); color:var(--black); font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5; }
+  #shell{ display:flex; flex-direction:column; height:100vh; }
+  .tabbar{ display:flex; gap:8px; padding:12px 20px; background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0; align-items:center; }
+  .tab{
+    border:1.5px solid var(--line); border-radius:8px; background:transparent; color:var(--brown-deep);
+    font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.76rem; letter-spacing:0.04em;
+    text-transform:uppercase; padding:8px 16px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all 0.2s ease;
+  }
+  .tab:hover{ border-color:var(--brown-mid); }
+  .tab.active{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
+  .body{ flex:1; overflow-y:auto; min-height:0; padding:24px; }
+  .panel{ max-width:760px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px 26px; box-shadow:0 10px 30px rgba(139,94,60,0.06); }
+  .panel + .panel{ margin-top:20px; }
+  .section-label{ font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); margin:0 0 16px; display:flex; align-items:center; gap:9px; }
+  .section-label i{ color:var(--brown-mid); }
+  .field-label{ display:block; font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--brown-deep); margin:14px 0 6px; }
+  .hint{ font-size:0.74rem; color:var(--text-dim); margin-top:6px; line-height:1.5; }
+  input,select{
+    width:100%; border:1.5px solid var(--line); border-radius:8px; background:#fff; color:var(--black);
+    font-family:'Montserrat',sans-serif; font-size:0.9rem; padding:10px 12px; outline:none; transition:border-color 0.2s;
+  }
+  input:focus,select:focus{ border-color:var(--brown-mid); }
+  .row{ display:flex; gap:14px; }
+  .row > div{ flex:1; }
+  .primary{
+    margin-top:20px; border:2px solid transparent; border-radius:8px;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
+    font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.82rem; letter-spacing:0.05em;
+    text-transform:uppercase; padding:11px 20px; cursor:pointer; display:inline-flex; align-items:center; gap:9px; transition:all 0.3s ease;
+  }
+  .primary:hover{ background:#fff; color:var(--brown-deep); border-color:var(--brown-mid); }
+  .primary:disabled{ opacity:0.6; cursor:not-allowed; }
+  .msg-line{ font-size:0.8rem; font-weight:600; margin-top:12px; min-height:16px; }
+  .msg-line.ok{ color:#4A9D4A; } .msg-line.err{ color:#C9302C; }
+  table{ width:100%; border-collapse:collapse; margin-top:4px; font-size:0.82rem; }
+  th,td{ text-align:left; padding:10px 10px; border-bottom:1px solid var(--line); }
+  th{ font-size:0.66rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
+  .pill{ font-size:0.64rem; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:10px; }
+  .pill.admin{ background:rgba(139,94,60,0.16); color:var(--brown-deep); }
+  .pill.sales{ background:rgba(166,120,83,0.12); color:var(--brown-mid); }
+  .pill.on{ background:rgba(74,157,74,0.14); color:#4A9D4A; }
+  .pill.off{ background:rgba(201,48,44,0.12); color:#C9302C; }
+  .mini{ border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.68rem; padding:5px 9px; cursor:pointer; margin-right:6px; }
+  .mini:hover{ border-color:var(--brown-mid); }
+  .hidden{ display:none; }
+  .gate-msg{ text-align:center; color:#C9302C; font-weight:600; padding:40px; }
+</style>
+</head>
+<body>
+  <div id="shell">
+    <div class="tabbar">
+      <button class="tab" data-tab="users"><i class="fas fa-users-gear"></i> Users</button>
+      <button class="tab" data-tab="settings"><i class="fas fa-gear"></i> Settings</button>
+    </div>
+    <div class="body">
+      <div id="gate" class="gate-msg hidden"><i class="fas fa-ban"></i> Admins only.</div>
+
+      <!-- ── USERS ── -->
+      <section id="usersTab" class="hidden">
+        <div class="panel">
+          <div class="section-label"><i class="fas fa-user-plus"></i> Create user</div>
+          <div class="row">
+            <div>
+              <label class="field-label">Email</label>
+              <input id="nuEmail" type="email" placeholder="person@sawo.com" />
+            </div>
+            <div>
+              <label class="field-label">Password (min 8)</label>
+              <input id="nuPass" type="password" placeholder="••••••••" />
+            </div>
+            <div style="flex:0 0 160px;">
+              <label class="field-label">Role</label>
+              <select id="nuRole"><option value="sales">sales</option><option value="admin">admin</option></select>
+            </div>
+          </div>
+          <button class="primary" id="createUserBtn"><i class="fas fa-user-plus"></i> Create user</button>
+          <div class="msg-line" id="userMsg"></div>
+        </div>
+        <div class="panel">
+          <div class="section-label"><i class="fas fa-users"></i> Existing users</div>
+          <table>
+            <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="userRows"><tr><td colspan="5" style="color:var(--text-dim);">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── SETTINGS ── -->
+      <section id="settingsTab" class="hidden">
+        <div class="panel">
+          <div class="section-label"><i class="fas fa-robot"></i> OpenRouter &amp; models</div>
+          <label class="field-label">OpenRouter API key</label>
+          <input id="sKey" type="password" placeholder="leave blank to keep current" autocomplete="off" />
+          <div class="hint" id="keyHint">Stored server-side only; used for chat + image generation. Never sent to the browser.</div>
+
+          <label class="field-label">Chat model</label>
+          <input id="sChatModel" type="text" list="chatModels" placeholder="anthropic/claude-opus-4.6" />
+          <datalist id="chatModels">
+            <option value="anthropic/claude-opus-4.6">Claude Opus 4.6</option>
+            <option value="openai/gpt-5.4">GPT-5.4</option>
+            <option value="google/gemini-3-pro-preview">Gemini 3 Pro</option>
+          </datalist>
+
+          <label class="field-label">Image model</label>
+          <input id="sImageModel" type="text" list="imageModels" placeholder="google/gemini-3-pro-image-preview" />
+          <datalist id="imageModels">
+            <option value="google/gemini-3-pro-image-preview">Nano Banana Pro</option>
+            <option value="google/gemini-3.1-flash-image-preview">Nano Banana 2</option>
+            <option value="google/gemini-2.5-flash-image">Nano Banana</option>
+          </datalist>
+
+          <div class="row">
+            <div>
+              <label class="field-label">Image size</label>
+              <select id="sImageSize"><option>2K</option><option>1K</option><option>4K</option></select>
+            </div>
+            <div>
+              <label class="field-label">Aspect ratio</label>
+              <select id="sImageRatio"><option>16:9</option><option>4:3</option><option>1:1</option><option>3:4</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="section-label"><i class="fas fa-paper-plane"></i> Sales notification &amp; mail</div>
+          <label class="field-label">Sales notification email</label>
+          <input id="sSalesEmail" type="email" placeholder="sales@sawo.com" />
+          <div class="hint">Recipient of the (future) "send to sales" notification. Mail delivery itself is not active yet — these fields are stored for later.</div>
+          <div class="row">
+            <div><label class="field-label">SMTP host</label><input id="sMailHost" type="text" /></div>
+            <div style="flex:0 0 140px;"><label class="field-label">SMTP port</label><input id="sMailPort" type="text" placeholder="587" /></div>
+          </div>
+          <div class="row">
+            <div><label class="field-label">SMTP user</label><input id="sMailUser" type="text" autocomplete="off" /></div>
+            <div><label class="field-label">SMTP password</label><input id="sMailPass" type="password" placeholder="leave blank to keep current" autocomplete="off" /></div>
+          </div>
+          <label class="field-label">From address</label>
+          <input id="sMailFrom" type="email" placeholder="no-reply@sawo.com" />
+          <button class="primary" id="saveSettingsBtn"><i class="fas fa-floppy-disk"></i> Save settings</button>
+          <div class="msg-line" id="settingsMsg"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script src="/cms.js"></script>
+<script>
+(function(){
+  const esc = CMS.esc, fmt = CMS.fmt;
+  const tabs = document.querySelectorAll('.tab');
+  const usersTab = document.getElementById('usersTab');
+  const settingsTab = document.getElementById('settingsTab');
+  const gate = document.getElementById('gate');
+  const initial = new URLSearchParams(location.search).get('tab') || 'users';
+
+  function showTab(name){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    usersTab.classList.toggle('hidden', name !== 'users');
+    settingsTab.classList.toggle('hidden', name !== 'settings');
+    if(name === 'users') loadUsers(); else loadSettings();
+  }
+  tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab)));
+
+  function gateOut(){ usersTab.classList.add('hidden'); settingsTab.classList.add('hidden'); document.querySelector('.tabbar').classList.add('hidden'); gate.classList.remove('hidden'); }
+
+  // ── Users ──
+  async function loadUsers(){
+    const rows = document.getElementById('userRows');
+    rows.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);">Loading…</td></tr>';
+    try{
+      const { users } = await CMS.get('/api/admin?resource=users');
+      if(!users.length){ rows.innerHTML = '<tr><td colspan="5" style="color:var(--text-dim);">No users.</td></tr>'; return; }
+      rows.innerHTML = '';
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        const roleClass = u.role === 'admin' ? 'admin' : 'sales';
+        const statusPill = u.active === false ? '<span class="pill off">inactive</span>' : '<span class="pill on">active</span>';
+        const toggleRole = u.role === 'admin' ? 'sales' : 'admin';
+        tr.innerHTML =
+          '<td>' + esc(u.email || '') + '</td>' +
+          '<td><span class="pill ' + roleClass + '">' + esc(u.role || '—') + '</span></td>' +
+          '<td>' + statusPill + '</td>' +
+          '<td style="color:var(--text-dim);">' + esc(fmt(u.created_at)) + '</td>' +
+          '<td>' +
+            '<button class="mini" data-act="role" data-id="' + u.id + '" data-val="' + toggleRole + '">Make ' + toggleRole + '</button>' +
+            '<button class="mini" data-act="active" data-id="' + u.id + '" data-val="' + (u.active === false ? 'true' : 'false') + '">' + (u.active === false ? 'Activate' : 'Deactivate') + '</button>' +
+          '</td>';
+        rows.appendChild(tr);
+      });
+      rows.querySelectorAll('.mini').forEach(b => b.addEventListener('click', () => patchUser(b.dataset)));
+    }catch(e){
+      if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
+      rows.innerHTML = '<tr><td colspan="5" class="err" style="color:#C9302C;">' + esc(e.message) + '</td></tr>';
+    }
+  }
+
+  async function patchUser(ds){
+    const body = { id: ds.id };
+    if(ds.act === 'role') body.role = ds.val;
+    if(ds.act === 'active') body.active = ds.val === 'true';
+    try{ await CMS.send('PATCH', '/api/admin?resource=users', body); loadUsers(); }
+    catch(e){ alert(e.message); }
+  }
+
+  document.getElementById('createUserBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('userMsg'); msg.className = 'msg-line'; msg.textContent = '';
+    const btn = document.getElementById('createUserBtn'); btn.disabled = true;
+    try{
+      await CMS.send('POST', '/api/admin?resource=users', {
+        email: document.getElementById('nuEmail').value.trim(),
+        password: document.getElementById('nuPass').value,
+        role: document.getElementById('nuRole').value,
+      });
+      msg.className = 'msg-line ok'; msg.textContent = 'User created.';
+      document.getElementById('nuEmail').value = ''; document.getElementById('nuPass').value = '';
+      loadUsers();
+    }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
+    finally{ btn.disabled = false; }
+  });
+
+  // ── Settings ──
+  async function loadSettings(){
+    try{
+      const { settings } = await CMS.get('/api/admin?resource=settings');
+      document.getElementById('sChatModel').value = settings.chat_model || '';
+      document.getElementById('sImageModel').value = settings.image_model || '';
+      document.getElementById('sImageSize').value = settings.image_size || '2K';
+      document.getElementById('sImageRatio').value = settings.image_aspect_ratio || '16:9';
+      document.getElementById('sSalesEmail').value = settings.sales_notification_email || '';
+      document.getElementById('sMailHost').value = settings.mail_smtp_host || '';
+      document.getElementById('sMailPort').value = settings.mail_smtp_port || '';
+      document.getElementById('sMailUser').value = settings.mail_smtp_user || '';
+      document.getElementById('sMailFrom').value = settings.mail_from_address || '';
+      document.getElementById('keyHint').textContent = settings.openrouter_api_key_set
+        ? 'A key is currently set. Leave blank to keep it, or type a new one to replace it.'
+        : 'No key set yet — paste your OpenRouter key. Stored server-side only.';
+    }catch(e){
+      if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
+      const msg = document.getElementById('settingsMsg'); msg.className = 'msg-line err'; msg.textContent = e.message;
+    }
+  }
+
+  document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('settingsMsg'); msg.className = 'msg-line'; msg.textContent = '';
+    const btn = document.getElementById('saveSettingsBtn'); btn.disabled = true;
+    try{
+      await CMS.send('PUT', '/api/admin?resource=settings', {
+        openrouter_api_key: document.getElementById('sKey').value,           // blank = keep
+        chat_model: document.getElementById('sChatModel').value.trim(),
+        image_model: document.getElementById('sImageModel').value.trim(),
+        image_size: document.getElementById('sImageSize').value,
+        image_aspect_ratio: document.getElementById('sImageRatio').value,
+        sales_notification_email: document.getElementById('sSalesEmail').value.trim(),
+        mail_smtp_host: document.getElementById('sMailHost').value.trim(),
+        mail_smtp_port: document.getElementById('sMailPort').value.trim(),
+        mail_smtp_user: document.getElementById('sMailUser').value.trim(),
+        mail_smtp_pass: document.getElementById('sMailPass').value,          // blank = keep
+        mail_from_address: document.getElementById('sMailFrom').value.trim(),
+      });
+      msg.className = 'msg-line ok'; msg.textContent = 'Settings saved.';
+      document.getElementById('sKey').value = ''; document.getElementById('sMailPass').value = '';
+      loadSettings();
+    }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
+    finally{ btn.disabled = false; }
+  });
+
+  showTab(initial === 'settings' ? 'settings' : 'users');
+})();
+</script>
+</body>
+</html>

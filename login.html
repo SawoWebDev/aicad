@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — SAWO CAD CMS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brown:#AF8564; --brown-deep:#8B5E3C; --brown-mid:#A67853; --brown-light:#C4A574;
+    --black:#141617; --bg:#faf7f3; --panel:#fff; --line:#e7ddd2; --text-dim:#8a7c6e;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--black);
+    font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .box{
+    background:var(--panel); border-radius:18px; border-top:5px solid var(--brown-mid);
+    padding:38px 34px; width:400px; max-width:100%;
+    box-shadow:0 25px 70px rgba(139,94,60,0.18); text-align:center;
+  }
+  .logo{ height:40px; width:auto; margin-bottom:20px; }
+  h1{
+    font-size:1.45rem; font-weight:700; margin:0 0 6px;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .sub{ font-size:0.9rem; color:var(--text-dim); margin:0 0 24px; }
+  label{
+    display:flex; align-items:center; gap:7px; justify-content:flex-start;
+    font-size:0.74rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--brown-deep); margin:14px 0 7px;
+  }
+  input{
+    width:100%; border:1.5px solid var(--line); border-radius:8px; background:#fff;
+    color:var(--black); font-family:'Montserrat',sans-serif; font-size:0.95rem;
+    padding:11px 13px; outline:none; transition:border-color 0.2s;
+  }
+  input:focus{ border-color:var(--brown-mid); }
+  button.primary{
+    width:100%; margin-top:20px; border:2px solid transparent; border-radius:8px;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);
+    color:#fff; font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.9rem;
+    letter-spacing:0.06em; text-transform:uppercase; padding:12px 0; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    transition:all 0.3s ease;
+  }
+  button.primary:hover{ background:#fff; color:var(--brown-deep); border-color:var(--brown-mid); }
+  button.primary:disabled{ opacity:0.6; cursor:not-allowed; }
+  .err{ font-size:0.82rem; color:#C9302C; margin-top:14px; min-height:16px; font-weight:600; }
+  .note{
+    font-size:0.72rem; color:var(--text-dim); margin-top:16px;
+    display:flex; align-items:center; gap:6px; justify-content:center; line-height:1.5;
+  }
+  .setup-banner{
+    background:rgba(166,120,83,0.10); border:1px solid var(--line); border-radius:10px;
+    padding:11px 13px; font-size:0.78rem; color:var(--brown-deep); margin-bottom:6px;
+    text-align:left; display:flex; gap:9px; align-items:flex-start;
+  }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <img class="logo" src="https://www.sawo.com/wp-content/uploads/2025/12/SAWO-logo.png" alt="SAWO" />
+
+    <!-- ── LOGIN ── -->
+    <form id="loginForm" class="hidden" autocomplete="on">
+      <h1>SAWO CAD CMS</h1>
+      <p class="sub">Sign in to view conversation logs and settings.</p>
+      <label for="loginEmail"><i class="fas fa-envelope"></i> Email</label>
+      <input id="loginEmail" type="email" placeholder="you@sawo.com" autocomplete="username" />
+      <label for="loginPass"><i class="fas fa-lock"></i> Password</label>
+      <input id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <button class="primary" type="submit"><i class="fas fa-arrow-right-to-bracket"></i> Sign in</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+
+    <!-- ── FIRST-RUN CREATE USER ── -->
+    <form id="setupForm" class="hidden" autocomplete="off">
+      <h1>Create first admin</h1>
+      <p class="sub">No users exist yet. Create the initial administrator account.</p>
+      <div class="setup-banner">
+        <i class="fas fa-circle-info" style="margin-top:2px;"></i>
+        <span>This setup screen disables itself automatically once a user exists. After this,
+        add more users from the admin <b>Users</b> page.</span>
+      </div>
+      <label for="setupEmail"><i class="fas fa-envelope"></i> Admin email</label>
+      <input id="setupEmail" type="email" placeholder="admin@sawo.com" />
+      <label for="setupPass"><i class="fas fa-lock"></i> Password (min 8 chars)</label>
+      <input id="setupPass" type="password" placeholder="••••••••" />
+      <button class="primary" type="submit"><i class="fas fa-user-shield"></i> Create admin &amp; continue</button>
+      <div class="err" id="setupErr"></div>
+    </form>
+
+    <div id="loading" class="note"><i class="fas fa-circle-notch fa-spin"></i> Loading…</div>
+    <div class="note"><i class="fas fa-lock"></i> Sessions are secured with server-side httpOnly cookies.</div>
+  </div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const redirect = params.get('redirect') || '/app';
+
+  const loginForm = document.getElementById('loginForm');
+  const setupForm = document.getElementById('setupForm');
+  const loading   = document.getElementById('loading');
+  const loginErr  = document.getElementById('loginErr');
+  const setupErr  = document.getElementById('setupErr');
+
+  function show(el){ el.classList.remove('hidden'); }
+  function hide(el){ el.classList.add('hidden'); }
+
+  async function init(){
+    try{
+      // Already signed in? Go straight to the target.
+      const s = await fetch('/api/auth?action=session').then(r=>r.json());
+      if(s.authenticated){ location.replace(redirect); return; }
+
+      const st = await fetch('/api/auth?action=setupStatus').then(r=>r.json());
+      hide(loading);
+      if(st.needsSetup){ show(setupForm); document.getElementById('setupEmail').focus(); }
+      else { show(loginForm); document.getElementById('loginEmail').focus(); }
+    }catch(e){
+      hide(loading); show(loginForm);
+      loginErr.textContent = 'Could not reach the server.';
+    }
+  }
+
+  loginForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    loginErr.textContent = '';
+    const btn = loginForm.querySelector('button'); btn.disabled = true;
+    try{
+      const resp = await fetch('/api/auth?action=login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          email: document.getElementById('loginEmail').value.trim(),
+          password: document.getElementById('loginPass').value,
+        })
+      });
+      const data = await resp.json();
+      if(!resp.ok){ loginErr.textContent = data.error || 'Sign-in failed.'; btn.disabled=false; return; }
+      location.replace(redirect);
+    }catch(err){ loginErr.textContent = 'Network error.'; btn.disabled=false; }
+  });
+
+  setupForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    setupErr.textContent = '';
+    const btn = setupForm.querySelector('button'); btn.disabled = true;
+    try{
+      const resp = await fetch('/api/auth?action=setup', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          email: document.getElementById('setupEmail').value.trim(),
+          password: document.getElementById('setupPass').value,
+        })
+      });
+      const data = await resp.json();
+      if(!resp.ok){ setupErr.textContent = data.error || 'Setup failed.'; btn.disabled=false; return; }
+      location.replace('/app');
+    }catch(err){ setupErr.textContent = 'Network error.'; btn.disabled=false; }
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
