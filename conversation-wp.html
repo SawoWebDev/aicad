@@ -1,557 +1,314 @@
-<!-- aicad.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAD Drawing Generator — SAWO</title>
+<!-- ════════════════════════════════════════════════════════════════════════
+     SAWO CAD Generator — WordPress / Avada embed block
+     ─────────────────────────────────────────────────────────────────────────
+     📋 PASTE-INTO-WORDPRESS NOTE:
+     You can paste this ENTIRE file directly into WordPress as-is — drop it into
+     an Avada "Code Block" element (or the WP "Custom HTML" block). No edits
+     needed; it works immediately as a ready-to-paste code block.
+
+     ℹ️  SINGLE SOURCE: this same file is also served at /conversation-wp.html and
+     embedded in the CMS "CAD Generator" iframe (vercel/app.html), so there is
+     only ONE generator UI to maintain — edit this file and both places update.
+     ─────────────────────────────────────────────────────────────────────────
+     It is fully self-contained: scoped CSS (everything lives under #sawocad-app
+     so it can't clobber the theme), the chat + preview UI, a centered "CAD
+     Generator" label, and the chat→drawing pipeline JS.
+
+     • The app sits in a softly tinted wrapper card (not raw white-on-white)
+       so it reads as a designed module on the page rather than a void.
+     • Both panel headers are solid brown fills (not hairline underlines) so
+       the brand color actually distributes across the layout instead of
+       collecting only in the title text and one border.
+     • API calls go cross-origin to the deployed CMS backend (CORS is open: the
+       API sends Access-Control-Allow-Origin: *). Change SAWO_API_BASE below if
+       you deploy the backend to a different domain.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
 <style>
-  :root{
+  /* All selectors are scoped to #sawocad-app so nothing leaks into the theme. */
+  #sawocad-app{
+    /* single brand brown used everywhere, plus tints/shades derived from it */
     --brown: #AF8564;
-    --brown-deep: #AF8564;
-    --brown-mid: #A67853;
-    --brown-light: #C4A574;
+    --brown-deep: #8C6444;   /* shade, for headers/text that need more contrast */
+    --brown-mid: #AF8564;
+    --brown-light: #C9A584;  /* tint, for soft fills */
+    --brown-tint: #F3EBE2;   /* pale wash for backgrounds */
     --black: #141617;
-    --bg: #faf7f3;
     --panel: #ffffff;
+    --soft: #FBF6EF;
+    --wrap: #F1E6D8;         /* outer wrapper tint, distinct from page white */
     --line: #e7ddd2;
     --text-dim: #8a7c6e;
-  }
 
-  *{ box-sizing: border-box; }
-  html, body{ height: 100%; }
-  body{
-    margin: 0;
-    background: var(--bg);
+    font-family: 'Montserrat', sans-serif !important;
     color: var(--black);
-    font-family: 'Montserrat', sans-serif;
     font-size: 14px;
     line-height: 1.5;
-  }
-
-  /* ── API KEY GATE ── */
-  #gate{
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    padding: 20px;
+    flex-direction: column;
+    gap: 22px;
+    min-height: 82vh;
+    /* a quiet warm gradient wrapper so the widget isn't a white block on a
+       white page — gives the brown somewhere to breathe outside the cards */
+    padding: 34px clamp(14px, 4vw, 34px) 40px;
+    border-radius: 22px;
   }
-  #gate .gate-box{
-    background: var(--panel);
-    border-radius: 18px;
-    border-top: 5px solid var(--brown-mid);
-    padding: 38px 34px;
-    width: 400px;
-    max-width: 100%;
-    box-shadow: 0 25px 70px rgba(139,94,60,0.18);
+  #sawocad-app *{ box-sizing: border-box; }
+
+  /* ── Centered label ── */
+  #sawocad-app .sc-title{
     text-align: center;
   }
-  #gate .gate-logo{ height: 40px; width: auto; margin-bottom: 20px; }
-  #gate h1{
-    font-size: 1.45rem;
-    font-weight: 700;
-    margin: 0 0 6px;
+  #sawocad-app .sc-title .sc-badge{
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 9px 20px; border-radius: 30px;
     background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    border: none;
+    box-shadow: 0 10px 26px rgba(140,100,68,0.28);
   }
-  #gate .gate-sub{ font-size: 0.9rem; color: var(--text-dim); margin: 0 0 24px; }
-  #gate label{
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    justify-content: center;
-    font-size: 0.78rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+  #sawocad-app .sc-title .sc-badge i{ color: #fff; font-size: 1.05rem; }
+  #sawocad-app .sc-title h2{
+    margin: 0; font-size: 1.35rem; font-weight: 800; letter-spacing: 0.4px;
     color: var(--brown-deep);
-    margin-bottom: 8px;
-  }
-  #keyInput{
-    width: 100%;
-    border: 1.5px solid var(--line);
-    border-radius: 8px;
-    background: #fff;
-    color: var(--black);
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.95rem;
-    padding: 11px 13px;
-    outline: none;
-    text-align: center;
-    transition: border-color 0.2s;
-  }
-  #keyInput:focus{ border-color: var(--brown-mid); }
-  #enterBtn{
-    width: 100%;
-    margin-top: 16px;
-    border: 2px solid transparent;
-    border-radius: 8px;
-    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
-    color: #fff;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 600;
-    font-size: 0.9rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding: 12px 0;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    transition: all 0.3s ease;
-  }
-  #enterBtn:hover{ background: #fff; color: var(--brown-deep); border-color: var(--brown-mid); }
-  #gate .gate-note{
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    margin-top: 16px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    justify-content: center;
-    line-height: 1.5;
-  }
-  #gate .gate-err{ font-size: 0.8rem; color: #C9302C; margin-top: 12px; min-height: 16px; font-weight: 600; }
-
-  /* ── SHELL ── */
-  #shell{ display: none; flex-direction: column; height: 100vh; }
-  #shell.visible{ display: flex; }
-
-  /* ── Shared page header (identical across all CMS frames) ── */
-  .page-header{
-    display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
-    border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
-  }
-  .ph-icon{
-    width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
-    box-shadow:0 6px 16px rgba(166,120,83,0.32);
-  }
-  .ph-text h2{ font-size:1.08rem; font-weight:700; margin:0; color:var(--brown-deep); letter-spacing:0.2px; }
-  .ph-text p{ font-size:0.74rem; color:var(--text-dim); margin:1px 0 0; }
-  .actions{ margin-left:auto; display:flex; align-items:center; gap:12px; }
-  .log-status{
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-dim);
-    padding: 6px 12px;
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    white-space: nowrap;
-  }
-  .log-status .dot{
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--text-dim);
-    flex-shrink: 0;
-  }
-  .log-status.connecting .dot{ animation: logpulse 1s ease-in-out infinite; }
-  .log-status.live{ color: #4A9D4A; border-color: rgba(74,157,74,0.35); }
-  .log-status.live .dot{ background: #4A9D4A; box-shadow: 0 0 8px rgba(74,157,74,0.7); }
-  .log-status.error{ color: #C9302C; border-color: rgba(201,48,44,0.35); }
-  .log-status.error .dot{ background: #C9302C; }
-  @keyframes logpulse{ 0%,100%{ opacity: 1; } 50%{ opacity: 0.25; } }
-  @media (max-width: 640px){
-    .log-status #logStatusText{ display: none; }
-    .log-status{ padding: 6px; }
   }
 
-  /* ── APP GRID ── */
-  #app{
+  /* ── App grid: conversation + preview ── */
+  #sawocad-app .sc-grid{
     display: grid;
     grid-template-columns: 420px 1fr;
-    gap: 18px;
-    flex: 1;
-    min-height: 0;
-    padding: 18px;
-    background: var(--bg);
+    gap: 22px;
+    height: 800px;
   }
-
-  .left, .right{
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+  #sawocad-app .sc-col{
+    display: flex; flex-direction: column; min-height: 0;
     background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 12px 40px rgba(139,94,60,0.10);
+    box-shadow: 0 16px 44px rgba(140,100,68,0.14);
   }
 
-  .col-head{
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    border-bottom: 1px solid var(--line);
-    padding: 13px 16px;
-    font-size: 0.74rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--brown-deep);
-    flex-shrink: 0;
-    background: var(--panel);
+  /* Solid brown header fill — this is the main fix: color now lives in a
+     real block at the top of each panel, not a 1px hairline. */
+  #sawocad-app .sc-col-head{
+    display: flex; align-items: center; gap: 10px;
+    padding: 15px 18px; flex-shrink: 0;
+    font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+    color: #fff;
+    background: linear-gradient(120deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
   }
-  .col-head i{ color: var(--brown-mid); }
+  #sawocad-app .sc-col-head i{ color: rgba(255,255,255,0.85); }
 
-  /* ── CHAT ── */
-  #chatThread{
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-height: 0;
-    background: var(--bg);
+  /* ── Chat ── */
+  #sawocad-app #sc-chatThread{
+    flex: 1; overflow-y: auto; min-height: 0;
+    padding: 18px; display: flex; flex-direction: column; gap: 12px;
+    background: var(--soft);
   }
-  #chatThread::-webkit-scrollbar{ width: 7px; }
-  #chatThread::-webkit-scrollbar-thumb{ background: var(--line); border-radius: 4px; }
-  .msg{
-    padding: 10px 13px;
-    max-width: 92%;
-    white-space: pre-wrap;
-    word-break: break-word;
-    border-radius: 12px;
-    font-size: 0.86rem;
-    line-height: 1.55;
+  #sawocad-app #sc-chatThread::-webkit-scrollbar{ width: 7px; }
+  #sawocad-app #sc-chatThread::-webkit-scrollbar-thumb{ background: var(--brown-light); border-radius: 4px; }
+  #sawocad-app .sc-msg{
+    padding: 11px 14px; max-width: 92%;
+    white-space: pre-wrap; word-break: break-word;
+    border-radius: 12px; font-size: 0.86rem; line-height: 1.55;
   }
-  .msg.bot{
-    align-self: flex-start;
-    background: #fff;
+  #sawocad-app .sc-msg.bot{
+    align-self: flex-start; background: #fff;
     border-left: 4px solid var(--brown-mid);
-    box-shadow: 0 5px 15px rgba(139,94,60,0.08);
-    border-top-left-radius: 4px;
+    box-shadow: 0 5px 15px rgba(140,100,68,0.10); border-top-left-radius: 4px;
   }
-  .msg.user{
+  #sawocad-app .sc-msg.user{
     align-self: flex-end;
     background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
-    color: #fff;
-    box-shadow: 0 5px 15px rgba(139,94,60,0.2);
-    border-top-right-radius: 4px;
+    color: #fff; box-shadow: 0 6px 18px rgba(140,100,68,0.28); border-top-right-radius: 4px;
   }
-  .msg.sys{
-    align-self: center;
-    background: transparent;
-    text-align: center;
-    font-size: 0.76rem;
-    color: var(--text-dim);
-    max-width: 100%;
-    padding: 4px 8px;
+  #sawocad-app .sc-msg.sys{
+    align-self: center; background: var(--brown-tint); text-align: center;
+    font-size: 0.76rem; color: var(--brown-deep); max-width: 100%; padding: 6px 14px;
+    border-radius: 20px; font-weight: 600;
   }
-  .msg .who{
-    display: block;
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    margin-bottom: 4px;
+  #sawocad-app .sc-msg .who{
+    display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; margin-bottom: 4px;
   }
-  .msg.bot .who{ color: var(--brown-mid); }
-  .msg.user .who{ color: rgba(255,255,255,0.8); }
+  #sawocad-app .sc-msg.bot .who{ color: var(--brown-mid); }
+  #sawocad-app .sc-msg.user .who{ color: rgba(255,255,255,0.8); }
 
   /* Typing indicator shown while the assistant is preparing a reply */
-  .typing-dots{ display: inline-flex; align-items: center; gap: 5px; padding: 3px 2px; }
-  .typing-dots span{
+  #sawocad-app .sc-typing{ display: inline-flex; align-items: center; gap: 5px; padding: 3px 2px; }
+  #sawocad-app .sc-typing span{
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--brown-mid); opacity: 0.4;
-    animation: typing-bounce 1.2s infinite ease-in-out both;
+    animation: sc-typing-bounce 1.2s infinite ease-in-out both;
   }
-  .typing-dots span:nth-child(2){ animation-delay: 0.15s; }
-  .typing-dots span:nth-child(3){ animation-delay: 0.3s; }
-  @keyframes typing-bounce{
+  #sawocad-app .sc-typing span:nth-child(2){ animation-delay: 0.15s; }
+  #sawocad-app .sc-typing span:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes sc-typing-bounce{
     0%, 80%, 100%{ transform: translateY(0); opacity: 0.4; }
     40%{ transform: translateY(-5px); opacity: 1; }
   }
 
-  .chat-input-row{
+  #sawocad-app .sc-input-row{
     border-top: 1px solid var(--line);
-    padding: 12px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-shrink: 0;
+    padding: 14px; display: flex; gap: 10px; align-items: center; flex-shrink: 0;
     background: var(--panel);
   }
-  #chatInput{
-    flex: 1;
-    border: 1.5px solid var(--line);
-    border-radius: 9px;
-    background: #fff;
-    color: var(--black);
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.88rem;
-    height: 44px;
-    min-height: 44px;
-    max-height: 140px;
-    resize: none;
-    padding: 11px 14px;
-    line-height: 20px;
-    outline: none;
-    transition: border-color 0.2s;
-    overflow-y: auto;
+  #sawocad-app #sc-chatInput{
+    flex: 1; border: 1.5px solid var(--line); border-radius: 9px;
+    background: var(--soft); color: var(--black);
+    font-family: 'Montserrat', sans-serif !important; font-size: 0.88rem;
+    height: 44px; min-height: 44px; max-height: 140px; resize: none;
+    padding: 11px 14px; line-height: 20px;
+    outline: none; transition: border-color 0.2s, background 0.2s; overflow-y: auto;
   }
-  #chatInput:focus{ border-color: var(--brown-mid); }
-  #sendBtn{
-    border: 2px solid transparent;
-    border-radius: 9px;
+  #sawocad-app #sc-chatInput:focus{ border-color: var(--brown-mid); background: #fff; }
+  #sawocad-app #sc-sendBtn{
+    border: 2px solid transparent; border-radius: 9px;
     background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
-    color: #fff;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 0.95rem;
-    cursor: pointer;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0;
+    color: #fff; font-family: 'Montserrat', sans-serif !important; font-size: 0.95rem;
+    cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0;
+    box-shadow: 0 6px 16px rgba(140,100,68,0.30);
     transition: all 0.3s ease;
   }
-  #sendBtn:hover{ background: #fff; color: var(--brown-deep); border-color: var(--brown-mid); }
-  #sendBtn:disabled{
-    background: var(--line);
-    color: var(--text-dim);
-    border-color: var(--line);
-    cursor: not-allowed;
+  #sawocad-app #sc-sendBtn:hover{ background: #fff; color: var(--brown-deep); border-color: var(--brown-mid); }
+  #sawocad-app #sc-sendBtn:disabled{ background: var(--line); color: var(--text-dim); border-color: var(--line); cursor: not-allowed; box-shadow: none; }
+
+  /* ── Preview / output ── */
+  #sawocad-app #sc-output{
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 28px; overflow: auto; min-height: 0;
+    /* a deeper, slightly patterned ground so the empty state has presence
+       instead of reading as a flat blank rectangle */
+    background:
+      radial-gradient(circle at 50% 38%, rgba(175,133,100,0.07), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(140,100,68,0.035) 0px, rgba(140,100,68,0.035) 1px, transparent 1px, transparent 14px),
+      var(--soft);
+  }
+  #sawocad-app .sc-empty{ text-align: center; max-width: 360px; }
+  #sawocad-app .sc-empty .sc-iconw{
+    width: 92px; height: 92px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+    box-shadow: 0 14px 34px rgba(140,100,68,0.40), inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+  #sawocad-app .sc-empty .sc-iconw i{ font-size: 2.3rem; color: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+  #sawocad-app .sc-empty h3{ font-size: 1.15rem; font-weight: 700; margin: 0 0 8px; color: var(--brown-deep); font-family: 'Montserrat', sans-serif !important; }
+  #sawocad-app .sc-empty p{ font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; margin: 0; }
+
+  #sawocad-app .sc-frame{
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; max-width: 100%;
+    box-shadow: 0 20px 55px rgba(140,100,68,0.22); background:#fff;
+  }
+  #sawocad-app .sc-frame img{ display: block; max-width: 100%; max-height: 70vh; cursor: zoom-in; }
+
+  #sawocad-app .sc-error{
+    text-align: center; max-width: 440px; white-space: pre-wrap;
+    color: #C9302C; font-size: 0.88rem; line-height: 1.6;
+  }
+  #sawocad-app .sc-error .err-icon{ font-size: 2rem; margin-bottom: 12px; display: block; }
+
+  /* scan animation */
+  #sawocad-app .sc-scan-wrap{ text-align: center; }
+  #sawocad-app .sc-scan{
+    width: 320px; max-width: 70vw; height: 210px; border: 1px solid var(--line);
+    border-radius: 12px; position: relative; overflow: hidden; margin: 0 auto 16px;
+    background: #fff; box-shadow: 0 10px 30px rgba(140,100,68,0.16);
+  }
+  #sawocad-app .sc-scan::before{
+    content: ""; position: absolute; left: 0; right: 0; height: 2px;
+    background: var(--brown); box-shadow: 0 0 14px 2px rgba(175,133,100,0.7);
+    animation: sc-scanmove 1.6s ease-in-out infinite;
+  }
+  @keyframes sc-scanmove{ 0%{ top: 0; } 50%{ top: calc(100% - 2px); } 100%{ top: 0; } }
+  #sawocad-app .sc-scan-label{
+    font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brown-deep);
+  }
+  #sawocad-app .sc-scan-progress{
+    width: 320px; max-width: 70vw; height: 8px; margin: 14px auto 8px;
+    background: var(--line); border-radius: 6px; overflow: hidden;
+  }
+  #sawocad-app .sc-scan-progress-fill{
+    height: 100%; width: 0%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--brown-mid) 0%, var(--brown-light) 100%); transition: width 0.3s ease;
+  }
+  #sawocad-app .sc-scan-pct{
+    font-size: 0.78rem; font-weight: 700; color: var(--brown-deep); letter-spacing: 0.04em;
   }
 
-  /* ── OUTPUT ── */
-  #output{
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 28px;
-    overflow: auto;
-    min-height: 0;
-    background: var(--bg);
+  #sawocad-app .sc-out-actions{
+    border-top: 1px solid var(--line); padding: 12px 16px; flex-shrink: 0; display: none; background: var(--panel);
   }
-  .empty-state{ text-align: center; max-width: 360px; }
-  .empty-state .icon-wrapper{
-    width: 86px; height: 86px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--brown-mid) 0%, var(--brown-light) 100%);
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 20px;
-    box-shadow: 0 10px 28px rgba(166,120,83,0.35), inset 0 2px 4px rgba(255,255,255,0.3);
+  #sawocad-app .sc-out-actions.visible{ display: block; }
+  #sawocad-app #sc-downloadBtn{
+    border: 2px solid var(--brown-mid); border-radius: 8px; background: transparent; color: var(--brown-deep);
+    font-family: 'Montserrat', sans-serif !important; font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 9px 16px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease;
   }
-  .empty-state .icon-wrapper i{ font-size: 2.3rem; color: #fff; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
-  .empty-state h3{
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin: 0 0 8px;
-    color: var(--brown-deep);
-  }
-  .empty-state p{ font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; margin: 0; }
+  #sawocad-app #sc-downloadBtn:hover{ background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%); color: #fff; border-color: transparent; }
 
-  .result-frame{
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    overflow: hidden;
-    max-width: 100%;
-    box-shadow: 0 20px 55px rgba(139,94,60,0.18);
-  }
-  .result-frame img{ display: block; max-width: 100%; max-height: 78vh; cursor: zoom-in; }
+  #sawocad-app ::placeholder{ color: #b8a89a; }
 
-  .error-state{
-    text-align: center;
-    max-width: 440px;
-    white-space: pre-wrap;
-    color: #C9302C;
-    font-size: 0.88rem;
-    line-height: 1.6;
+  /* lightbox (fixed overlay over the whole page) */
+  #sc-lightbox{
+    position: fixed; inset: 0; background: rgba(20,22,23,0.92);
+    display: none; align-items: center; justify-content: center; z-index: 99999; padding: 28px; cursor: zoom-out;
   }
-  .error-state .err-icon{ font-size: 2rem; margin-bottom: 12px; display: block; }
-
-  /* ── SCAN ANIMATION ── */
-  .scan-wrap{ text-align: center; }
-  .scan{
-    width: 320px;
-    max-width: 70vw;
-    height: 210px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    position: relative;
-    overflow: hidden;
-    margin: 0 auto 16px;
-    background: #fff;
-    box-shadow: 0 10px 30px rgba(139,94,60,0.12);
-  }
-  .scan::before{
-    content: "";
-    position: absolute;
-    left: 0; right: 0;
-    height: 2px;
-    background: var(--brown);
-    box-shadow: 0 0 14px 2px rgba(175,133,100,0.7);
-    animation: scanmove 1.6s ease-in-out infinite;
-  }
-  @keyframes scanmove{ 0%{ top: 0; } 50%{ top: calc(100% - 2px); } 100%{ top: 0; } }
-  .scan-label{
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--brown-deep);
-  }
-  .scan-progress{
-    width: 320px;
-    max-width: 70vw;
-    height: 8px;
-    margin: 14px auto 8px;
-    background: var(--line);
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .scan-progress-fill{
-    height: 100%;
-    width: 0%;
-    border-radius: 6px;
-    background: linear-gradient(90deg, var(--brown-mid) 0%, var(--brown-light) 100%);
-    transition: width 0.3s ease;
-  }
-  .scan-pct{
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--brown-deep);
-    letter-spacing: 0.04em;
-  }
-
-  .out-actions{
-    border-top: 1px solid var(--line);
-    padding: 12px 16px;
-    flex-shrink: 0;
-    display: none;
-    background: var(--panel);
-  }
-  .out-actions.visible{ display: block; }
-  #downloadBtn{
-    border: 2px solid var(--brown-mid);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--brown-deep);
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 600;
-    font-size: 0.8rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    padding: 9px 16px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-  }
-  #downloadBtn:hover{ background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%); color: #fff; border-color: transparent; }
-
-  /* ── LIGHTBOX ── */
-  #lightbox{
-    position: fixed;
-    inset: 0;
-    background: rgba(20,22,23,0.92);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 200;
-    padding: 28px;
-    cursor: zoom-out;
-  }
-  #lightbox.visible{ display: flex; }
-  #lightbox img{ max-width: 100%; max-height: 100%; border: 2px solid var(--brown-mid); border-radius: 8px; }
-
-  ::placeholder{ color: #b8a89a; }
+  #sc-lightbox.visible{ display: flex; }
+  #sc-lightbox img{ max-width: 100%; max-height: 100%; border: 2px solid #A67853; border-radius: 8px; }
 
   @media (max-width: 900px){
-    #app{ grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    #sawocad-app .sc-grid{ grid-template-columns: 1fr; height: auto; }
+    #sawocad-app .sc-col{ height: 560px; }
   }
 </style>
-</head>
-<body>
 
-  <!-- API key + model selection are handled server-side (CMS admin Settings);
-       the public tool no longer exposes any key/model controls. -->
+<div id="sawocad-app">
 
-  <!-- ══════════════ SHELL ══════════════ -->
-  <div id="shell">
-
-    <!-- HEADER -->
-    <header class="page-header">
-      <div class="ph-icon"><i class="fas fa-compass-drafting"></i></div>
-      <div class="ph-text">
-        <h2>CAD Generator</h2>
-        <p>Technical sauna drawing synthesis</p>
-      </div>
-      <div class="actions">
-        <div class="log-status connecting" id="logStatus" title="Supabase conversation logging">
-          <span class="dot"></span>
-          <span id="logStatusText">Log: connecting…</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- APP -->
-    <div id="app">
-      <div class="left">
-        <div class="col-head"><i class="fas fa-comments"></i> Requirements assistant</div>
-        <div id="chatThread"></div>
-        <div class="chat-input-row">
-          <textarea id="chatInput" placeholder="Sauna for 5 persons."></textarea>
-          <button id="sendBtn" title="Send message"><i class="fas fa-paper-plane"></i></button>
-        </div>
-      </div>
-      <div class="right">
-        <div class="col-head"><i class="fas fa-image"></i> Preview</div>
-        <div id="output">
-          <div class="empty-state">
-            <div class="icon-wrapper"><i class="fas fa-image"></i></div>
-            <h3>Generated drawings appear here</h3>
-            <p>Describe your sauna in the chat — your technical drawing is generated automatically once the assistant has enough detail and you confirm.</p>
-          </div>
-        </div>
-        <div class="out-actions" id="outActions">
-          <button id="downloadBtn"><i class="fas fa-download"></i> Download PNG</button>
-        </div>
+  <div class="sc-grid">
+    <!-- conversation -->
+    <div class="sc-col">
+      <div class="sc-col-head"><i class="fas fa-comments"></i> Requirements assistant</div>
+      <div id="sc-chatThread"></div>
+      <div class="sc-input-row">
+        <textarea id="sc-chatInput" placeholder="Sauna for 5 persons."></textarea>
+        <button id="sc-sendBtn" title="Send message"><i class="fas fa-paper-plane"></i></button>
       </div>
     </div>
 
+    <!-- preview -->
+    <div class="sc-col">
+      <div class="sc-col-head"><i class="fas fa-image"></i> Preview</div>
+      <div id="sc-output">
+        <div class="sc-empty">
+          <div class="sc-iconw"><i class="fas fa-image"></i></div>
+          <h3>Generated drawings appear here</h3>
+          <p>Describe your sauna in the chat — your technical drawing is generated automatically once the assistant has enough detail and you confirm.</p>
+        </div>
+      </div>
+      <div class="sc-out-actions" id="sc-outActions">
+        <button id="sc-downloadBtn"><i class="fas fa-download"></i> Download PNG</button>
+      </div>
+    </div>
   </div>
+</div>
 
-  <!-- ══════════════ LIGHTBOX ══════════════ -->
-  <div id="lightbox"><img id="lightboxImg" src="" alt="Generated drawing full size" /></div>
+<div id="sc-lightbox"><img id="sc-lightboxImg" src="" alt="Generated drawing full size" /></div>
 
 <script>
 (function(){
-  // ── Backend proxy config ──
-  // All OpenRouter calls + conversation logging go through the CMS serverless API
-  // so the API key and model choices stay server-side (managed in the admin
-  // Settings page).
-  // This copy is served from the SAME origin as the CMS API (it ships inside the
-  // vercel/ app and is embedded in the CMS shell), so API_BASE is '' → all calls
-  // are same-origin relative paths. That works in local dev (localhost:3000) and
-  // in production (sawoaicad.vercel.app) with no CORS dependency. The standalone
-  // public copy in SAUNA CAD/conversation.html keeps the absolute URL instead.
-  const API_BASE = '';
+  // ── Backend base URL ──
+  // The chat + image generation + logging all run on the deployed CMS (Vercel),
+  // which holds the API key server-side and sends Access-Control-Allow-Origin: *.
+  // Embedded in WordPress (a different origin), so this must be the ABSOLUTE URL.
+  const SAWO_API_BASE = 'https://sawoaicad.vercel.app';
 
-  // ── Verbatim image system prefix (from original buildSystemPrefix) ──
   const IMAGE_SYSTEM_PREFIX = "Generate a complete technical CAD-style engineering drawing, drafted in a precise architectural/mechanical drafting convention: clean black linework on a white canvas, dimension lines with arrowheads and numeric callouts, labeled components with leader lines, a title block, and consistent line weights distinguishing outlines from hatching. ";
 
-  // ── Verbatim reference template (from original) ──
   const REFERENCE_TEMPLATE = `================================================================================
 CAD TECHNICAL DRAWING — SAUNA UNIT LAYOUT
 DRAWING CONTAINS: FLOOR PLAN (Left) | SECTION VIEW (Right) | SPEC TABLE (Far Right)
@@ -780,7 +537,6 @@ END OF TEXT-BASED CAD REPRESENTATION
 
 Generate the complete technical CAD drawing canvas image now.`;
 
-  // ── Verbatim chat system prompt + APPENDED trigger instruction ──
   const SYSTEM_PROMPT = `You are a requirements-gathering assistant for a sauna manufacturer's CAD drawing pipeline. You chat with the client to collect what's needed to produce a structured technical drawing dataset.
 
 Your scope, strictly:
@@ -789,14 +545,14 @@ Your scope, strictly:
 - Stay on these two topics only. If the user goes off-topic, gently steer back to sauna measurements, door type, or accessories/remarks.
 - The client's contact details (name, email, phone, and optional location) are collected separately before this conversation begins. Never ask for the client's name, email, phone number, or any contact information — focus only on sauna room measurements, door type, and accessories.
 - Be concise and conversational. Ask one or two focused questions at a time, don't interrogate with a long list.
-- Once you believe you have enough information (at minimum: outer room size, inner room size or wall thickness, bench heights, room height, and door type), tell the user you have enough to generate the txt block, and that they can click "Generate txt block."
+- Write in plain text only. Do not use any markdown formatting, asterisks, or bold. Never use em dashes (—) or en dashes (–); use a normal hyphen, a comma, or a period instead.
+- Once you believe you have enough information (at minimum: outer room size, inner room size or wall thickness, bench heights, room height, and door type), briefly recap the key details, tell the user you have everything you need, and ask them to confirm by saying "generate" or "yes" so you can finalize the drawing. Do not mention any button or internal steps.
 
-You do not generate the txt block yourself in normal chat replies — just gather and confirm information conversationally.
+You do not produce the final dataset yourself in normal chat replies. Just gather and confirm information conversationally.
 
 When you have gathered enough data AND the user explicitly confirms (says "go", "generate", "yes", "okay", "proceed", or any clear affirmation), end your reply with this exact tag on its own line:
 [READY_TO_GENERATE]`;
 
-  // ── Verbatim txt-block system prompt (includes the reference template) ──
   const TXTBLOCK_SYSTEM_PROMPT = `You produce a structured plaintext CAD blueprint dataset for a sauna unit, strictly following the exact section structure, headers, table layout, and field labels of the reference template below. This template is only a pattern — every measurement, dimension, door type, heater spec, wall code, and remark must be replaced with values gathered from the conversation with the client. Do not invent values that contradict what the client stated; if something wasn't specified, make a reasonable default consistent with the rest of the drawing and keep the same structural format. Accessory-related requests must appear only in the REMARKS section. Door type (single door or double door) must be reflected in the ENTRY/DOOR fields. Always end the output with the exact line: "Generate the complete technical CAD drawing canvas image now."
 
 Output ONLY the final txt block, in plain text, no markdown code fences, no commentary before or after it.
@@ -805,17 +561,16 @@ REFERENCE TEMPLATE (pattern only — replace all values):
 ${REFERENCE_TEMPLATE}`;
 
   // ── DOM refs ──
-  const shell = document.getElementById('shell');
-  const chatThread = document.getElementById('chatThread');
-  const chatInput = document.getElementById('chatInput');
-  const sendBtn = document.getElementById('sendBtn');
-  const output = document.getElementById('output');
-  const outActions = document.getElementById('outActions');
-  const downloadBtn = document.getElementById('downloadBtn');
-  const lightbox = document.getElementById('lightbox');
-  const lightboxImg = document.getElementById('lightboxImg');
+  const chatThread = document.getElementById('sc-chatThread');
+  const chatInput = document.getElementById('sc-chatInput');
+  const sendBtn = document.getElementById('sc-sendBtn');
+  const output = document.getElementById('sc-output');
+  const outActions = document.getElementById('sc-outActions');
+  const downloadBtn = document.getElementById('sc-downloadBtn');
+  const lightbox = document.getElementById('sc-lightbox');
+  const lightboxImg = document.getElementById('sc-lightboxImg');
 
-  let history = [];          // {role, content}
+  let history = [];
   let currentImageUrl = null;
   let busy = false;
 
@@ -832,43 +587,19 @@ ${REFERENCE_TEMPLATE}`;
   let progTimer = null;
   let progValue = 0;
 
-  // ── Conversation logging (via CMS server proxy — no DB key in the browser) ──
   const sessionId = (crypto.randomUUID && crypto.randomUUID())
     || ('sess-' + Date.now() + '-' + Math.random().toString(16).slice(2));
   let loggedTxtBlock = null;
   let loggedImageGenerated = false;
   let loggedImageUrl = null;
-  let salesPrompted = false;   // ensures the "Send to sales?" prompt shows once
+  let salesPrompted = false;
 
-  // Status indicator in the header
-  const logStatusEl = document.getElementById('logStatus');
-  const logStatusText = document.getElementById('logStatusText');
-  function setLogStatus(state, text){
-    if(!logStatusEl) return;
-    logStatusEl.classList.remove('connecting', 'live', 'error');
-    logStatusEl.classList.add(state);
-    logStatusText.textContent = text;
-  }
-
-  // Connectivity check on load — pings the CMS endpoint WITHOUT writing a row, so
-  // sessions where the client never typed anything are not recorded.
-  async function checkLogStatus(){
-    setLogStatus('connecting', 'Log: connecting…');
-    try{
-      const resp = await fetch(API_BASE + '/api/conversations?action=ping');
-      if(resp.ok) setLogStatus('live', 'Log: connected');
-      else { setLogStatus('error', 'Log: error ' + resp.status); console.warn('checkLogStatus HTTP', resp.status, await resp.text()); }
-    } catch(e){ setLogStatus('error', 'Log: offline'); console.warn('checkLogStatus failed', e); }
-  }
-
-  // Fire-and-forget upsert of the whole session row through the CMS server proxy
-  // (service-role write server-side). Never throws / blocks the UI. Only records
-  // once the client has actually sent a message (no empty/abandoned sessions).
+  // Fire-and-forget session logging (only once the client has actually spoken).
   async function logSession(){
     const clientSpoke = Array.isArray(history) && history.some(m => m && m.role === 'user' && String(m.content || '').trim());
     if(!clientSpoke) return;
     try{
-      const resp = await fetch(API_BASE + '/api/conversations?action=log', {
+      await fetch(SAWO_API_BASE + '/api/conversations?action=log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -881,30 +612,9 @@ ${REFERENCE_TEMPLATE}`;
           user_agent: navigator.userAgent
         })
       });
-      if(resp.ok){
-        const t = new Date().toLocaleTimeString();
-        setLogStatus('live', 'Log: saved ✓ ' + t);
-      } else {
-        setLogStatus('error', 'Log: error ' + resp.status);
-        console.warn('logSession HTTP', resp.status, await resp.text());
-      }
-    } catch(e){
-      setLogStatus('error', 'Log: offline');
-      console.warn('logSession failed', e);
-    }
+    } catch(e){ /* logging is best-effort; never block the UI */ }
   }
 
-  // The tool is open to clients — no key gate. Show the shell immediately.
-  shell.classList.add('visible');
-
-  // Initialize chat after a brief delay to ensure DOM is ready
-  setTimeout(() => {
-    initChat();
-    chatInput.focus();
-    checkLogStatus();
-  }, 50);
-
-  // ── Chat rendering ──
   // Escape HTML, then render a tiny safe subset of markdown so the assistant's
   // **bold** labels show as real bold instead of literal asterisks. Only
   // <strong>/<em> are injected into already-escaped text, so this is XSS-safe.
@@ -920,12 +630,13 @@ ${REFERENCE_TEMPLATE}`;
          .replace(/__([^_]+)__/g, '<strong>$1</strong>');
     h = h.replace(/(^|[^*])\*(?!\*)([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
     h = h.replace(/\*/g, '');   // strip any leftover stray asterisks
+    h = h.replace(/\s*[—–]\s*/g, ' - ');   // never show em/en dashes in chat replies
     return h;
   }
 
   function addMsg(role, text){
     const div = document.createElement('div');
-    div.className = 'msg ' + role;
+    div.className = 'sc-msg ' + role;
     if(role === 'bot' || role === 'user'){
       const who = document.createElement('span');
       who.className = 'who';
@@ -945,21 +656,18 @@ ${REFERENCE_TEMPLATE}`;
     chatThread.scrollTop = chatThread.scrollHeight;
     return div;
   }
-
-  function addSysMsg(text){
-    return addMsg('sys', text);
-  }
+  function addSysMsg(text){ return addMsg('sys', text); }
 
   // Animated "assistant is typing" bubble shown while we await the model reply.
   function addTyping(){
     const div = document.createElement('div');
-    div.className = 'msg bot';
+    div.className = 'sc-msg bot';
     const who = document.createElement('span');
     who.className = 'who';
     who.textContent = 'ASSISTANT';
     div.appendChild(who);
     const dots = document.createElement('div');
-    dots.className = 'typing-dots';
+    dots.className = 'sc-typing';
     dots.innerHTML = '<span></span><span></span><span></span>';
     div.appendChild(dots);
     chatThread.appendChild(div);
@@ -967,15 +675,32 @@ ${REFERENCE_TEMPLATE}`;
     return div;
   }
 
+  // Realistic "thinking" pause before a bot message appears — scaled to the
+  // message length so longer replies take a touch longer, just like a person.
+  function typingDelay(text){
+    return Math.min(2200, 550 + (text ? text.length : 0) * 16); // ~0.5s–2.2s
+  }
+  // Shows the typing dots, then renders the real message after a realistic
+  // pause. Holds `busy`/disables send so the user can't race the scripted flow.
+  function botSay(text, after){
+    busy = true; sendBtn.disabled = true;
+    const t = addTyping();
+    setTimeout(() => {
+      t.remove();
+      addMsg('bot', text);
+      busy = false; sendBtn.disabled = false; chatInput.focus();
+      if(after) after();
+    }, typingDelay(text));
+  }
+
   function initChat(){
     chatThread.innerHTML = '';
     history = [];
-    addMsg('bot', "Hi — let's put together your sauna drawing. Tell me about the room size (outer and/or inner dimensions), bench heights, ceiling height, and whether you want a single or double door. If you'd like accessories — extra LEDs, controls, window style, stone inlay, etc. — mention those too; they'll go under remarks. When I have enough and you confirm, I'll generate the drawing automatically.");
+    botSay("Hi! Let’s put together your sauna drawing. Can you share the room size (outer and or inner), bench heights, ceiling height, and if you want a single or double door? If you have any extras in mind like LEDs, controls, window style, stone inlay, etc., just include them as well and I’ll note them under remarks. Once I have the details and you confirm, I’ll generate the drawing automatically.");
   }
 
-  // ── Chat call (via CMS proxy; model + key chosen server-side) ──
   async function callChatModel(messages, systemPrompt){
-    const resp = await fetch(API_BASE + '/api/openrouter?type=chat', {
+    const resp = await fetch(SAWO_API_BASE + '/api/openrouter?type=chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages, systemPrompt })
@@ -989,9 +714,8 @@ ${REFERENCE_TEMPLATE}`;
     return data.content;
   }
 
-  // ── Image generation call (via CMS proxy; model/size/ratio + key server-side) ──
   async function callImageModel(fullPrompt){
-    const resp = await fetch(API_BASE + '/api/openrouter?type=image', {
+    const resp = await fetch(SAWO_API_BASE + '/api/openrouter?type=image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: fullPrompt })
@@ -1005,26 +729,20 @@ ${REFERENCE_TEMPLATE}`;
     return data.imageUrl;
   }
 
-  // ── Output rendering ──
   function renderEmpty(){
-    output.innerHTML = `
-      <div class="empty-state">
-        <div class="icon-wrapper"><i class="fas fa-image"></i></div>
-        <h3>Generated drawings appear here</h3>
-        <p>Describe your sauna in the chat — your technical drawing is generated automatically once the assistant has enough detail and you confirm.</p>
-      </div>`;
+    output.innerHTML =
+      '<div class="sc-empty">' +
+        '<div class="sc-iconw"><i class="fas fa-image"></i></div>' +
+        '<h3>Generated drawings appear here</h3>' +
+        '<p>Describe your sauna in the chat — your technical drawing is generated automatically once the assistant has enough detail and you confirm.</p>' +
+      '</div>';
     outActions.classList.remove('visible');
     currentImageUrl = null;
   }
-
   function renderScan(label){
-    output.innerHTML = `
-      <div class="scan-wrap">
-        <div class="scan"></div>
-        <div class="scan-label">${label}</div>
-        <div class="scan-progress"><div class="scan-progress-fill" id="scanFill"></div></div>
-        <div class="scan-pct" id="scanPct">0%</div>
-      </div>`;
+    output.innerHTML = '<div class="sc-scan-wrap"><div class="sc-scan"></div><div class="sc-scan-label">' + label + '</div>' +
+      '<div class="sc-scan-progress"><div class="sc-scan-progress-fill" id="sc-scanFill"></div></div>' +
+      '<div class="sc-scan-pct" id="sc-scanPct">0%</div></div>';
     outActions.classList.remove('visible');
     setProgress(progValue);
   }
@@ -1033,28 +751,28 @@ ${REFERENCE_TEMPLATE}`;
   // toward ~90% while we wait, then snap to 100% on completion.
   function setProgress(p){
     progValue = p;
-    const fill = document.getElementById('scanFill');
-    const pct = document.getElementById('scanPct');
+    const fill = document.getElementById('sc-scanFill');
+    const pct = document.getElementById('sc-scanPct');
     if(fill) fill.style.width = p + '%';
     if(pct) pct.textContent = Math.round(p) + '%';
   }
   function startProgress(){
     stopProgress();
     setProgress(0);
+    const start = Date.now();
     progTimer = setInterval(() => {
-      if(progValue < 90){
-        const step = Math.max(0.5, (90 - progValue) * 0.06); // decelerate near the ceiling
-        setProgress(Math.min(90, progValue + step));
-      }
-    }, 250);
+      const t = (Date.now() - start) / 1000;        // seconds elapsed
+      const target = 97;
+      const eased = target * (1 - Math.exp(-t / 9)); // smooth ramp from 0, never a hard stop
+      setProgress(Math.max(progValue, Math.min(target, eased)));
+    }, 200);
   }
   function finishProgress(){ stopProgress(); setProgress(100); }
   function stopProgress(){ if(progTimer){ clearInterval(progTimer); progTimer = null; } }
-
   function renderError(message){
     output.innerHTML = '';
     const div = document.createElement('div');
-    div.className = 'error-state';
+    div.className = 'sc-error';
     const ic = document.createElement('i');
     ic.className = 'fas fa-triangle-exclamation err-icon';
     div.appendChild(ic);
@@ -1062,12 +780,11 @@ ${REFERENCE_TEMPLATE}`;
     output.appendChild(div);
     outActions.classList.remove('visible');
   }
-
   function renderImage(url){
     currentImageUrl = url;
     output.innerHTML = '';
     const frame = document.createElement('div');
-    frame.className = 'result-frame';
+    frame.className = 'sc-frame';
     const img = document.createElement('img');
     img.src = url;
     img.alt = 'Generated technical CAD drawing';
@@ -1077,20 +794,11 @@ ${REFERENCE_TEMPLATE}`;
     outActions.classList.add('visible');
   }
 
-  // ── Lightbox ──
-  function openLightbox(url){
-    lightboxImg.src = url;
-    lightbox.classList.add('visible');
-  }
-  function closeLightbox(){
-    lightbox.classList.remove('visible');
-  }
+  function openLightbox(url){ lightboxImg.src = url; lightbox.classList.add('visible'); }
+  function closeLightbox(){ lightbox.classList.remove('visible'); }
   lightbox.addEventListener('click', closeLightbox);
-  document.addEventListener('keydown', (e) => {
-    if(e.key === 'Escape' && lightbox.classList.contains('visible')) closeLightbox();
-  });
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && lightbox.classList.contains('visible')) closeLightbox(); });
 
-  // ── Download ──
   downloadBtn.addEventListener('click', () => {
     if(!currentImageUrl) return;
     const a = document.createElement('a');
@@ -1101,10 +809,8 @@ ${REFERENCE_TEMPLATE}`;
     a.remove();
   });
 
-  // ── Automated two-step pipeline ──
   async function runPipeline(){
     try{
-      // Step 1 — generate the txt block from conversation history
       renderScan('Generating drawing dataset…');
       startProgress();
       const conversationDump = history.map(m => (m.role === 'user' ? 'CLIENT: ' : 'ASSISTANT: ') + m.content).join('\n\n');
@@ -1112,16 +818,12 @@ ${REFERENCE_TEMPLATE}`;
         [{ role: 'user', content: 'Here is the full conversation so far:\n\n' + conversationDump + '\n\nProduce the final txt block now, following the reference template structure exactly, using the gathered sauna measurements/door type and placing any accessories under REMARKS.' }],
         TXTBLOCK_SYSTEM_PROMPT
       );
-
       let txtBlock = reply.trim();
       const trigger = 'Generate the complete technical CAD drawing canvas image now.';
-      if(!txtBlock.includes(trigger)){
-        txtBlock += '\n\n' + trigger;
-      }
+      if(!txtBlock.includes(trigger)){ txtBlock += '\n\n' + trigger; }
       loggedTxtBlock = txtBlock;
       logSession();
 
-      // Step 2 — send txt block to the image model
       renderScan('Rendering technical drawing…');
       const fullPrompt = IMAGE_SYSTEM_PREFIX + txtBlock;
       const imageUrl = await callImageModel(fullPrompt);
@@ -1133,7 +835,6 @@ ${REFERENCE_TEMPLATE}`;
       loggedImageUrl = imageUrl;
       logSession();
 
-      // Feature 1 — after the image renders, offer to hand off to sales.
       promptSendToSales();
     } catch(err){
       stopProgress();
@@ -1142,41 +843,36 @@ ${REFERENCE_TEMPLATE}`;
     }
   }
 
-  // ── "Send to sales?" follow-up prompt (shown once, after a drawing renders) ──
   function promptSendToSales(){
     if(salesPrompted) return;
     salesPrompted = true;
-
     const wrap = document.createElement('div');
-    wrap.className = 'msg bot';
+    wrap.className = 'sc-msg bot';
     wrap.innerHTML =
       '<span class="who">ASSISTANT</span>' +
       'Would you like to send this drawing to our sales team for a follow-up?' +
       '<div style="margin-top:10px; display:flex; gap:8px;">' +
-        '<button type="button" id="sales-yes" style="border:2px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);color:#fff;">Yes, send to sales</button>' +
-        '<button type="button" id="sales-no" style="border:1.5px solid var(--line);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:transparent;color:var(--brown-deep);">No, thanks</button>' +
+        '<button type="button" id="sc-sales-yes" style="border:2px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);color:#fff;">Yes, send to sales</button>' +
+        '<button type="button" id="sc-sales-no" style="border:1.5px solid var(--line);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:transparent;color:var(--brown-deep);">No, thanks</button>' +
       '</div>';
     chatThread.appendChild(wrap);
     chatThread.scrollTop = chatThread.scrollHeight;
 
-    const yes = wrap.querySelector('#sales-yes');
-    const no = wrap.querySelector('#sales-no');
+    const yes = wrap.querySelector('#sc-sales-yes');
+    const no = wrap.querySelector('#sc-sales-no');
     const disable = () => { yes.disabled = true; no.disabled = true; yes.style.opacity = no.style.opacity = '0.5'; };
-
     no.addEventListener('click', () => { disable(); addSysMsg('No problem — not sent to sales.'); });
     yes.addEventListener('click', async () => {
       disable();
       try{
-        const resp = await fetch(API_BASE + '/api/conversations?action=sendToSales', {
+        const resp = await fetch(SAWO_API_BASE + '/api/conversations?action=sendToSales', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId })
         });
         if(!resp.ok){ const e = await resp.json().catch(()=>({})); throw new Error(e.error || ('HTTP ' + resp.status)); }
         addSysMsg('Sent to sales — they’ll be in touch. ✓');
-      }catch(err){
-        addSysMsg('Could not notify sales: ' + (err.message || String(err)));
-      }
+      }catch(err){ addSysMsg('Could not notify sales: ' + (err.message || String(err))); }
     });
   }
 
@@ -1184,9 +880,10 @@ ${REFERENCE_TEMPLATE}`;
   // Bot question helper: shows the question AND records it in history so the
   // captured details appear in the saved transcript.
   function askBot(text){
-    addMsg('bot', text);
-    history.push({ role: 'assistant', content: text });
-    logSession();
+    botSay(text, () => {
+      history.push({ role: 'assistant', content: text });
+      logSession();
+    });
   }
 
   // Sequential lead capture: Name → Email → Phone → Location (optional). Runs
@@ -1235,22 +932,16 @@ ${REFERENCE_TEMPLATE}`;
     sendBtn.disabled = true;
 
     const typingEl = addTyping();
-
     try{
       const reply = await callChatModel(history, SYSTEM_PROMPT);
       typingEl.remove();
-
       const TRIGGER_TAG = '[READY_TO_GENERATE]';
       const triggered = reply.includes(TRIGGER_TAG);
       const cleaned = reply.replace(TRIGGER_TAG, '').trim();
-
       if(cleaned) addMsg('bot', cleaned);
       history.push({ role: 'assistant', content: reply });
       logSession();
-
-      if(triggered){
-        await runPipeline();
-      }
+      if(triggered){ await runPipeline(); }
     } catch(err){
       typingEl.remove();
       addSysMsg('Error: ' + (err.message || String(err)));
@@ -1261,7 +952,6 @@ ${REFERENCE_TEMPLATE}`;
     }
   }
 
-  // ── Send chat ──
   async function sendChat(){
     if(busy) return;
     const text = chatInput.value.trim();
@@ -1283,15 +973,10 @@ ${REFERENCE_TEMPLATE}`;
 
   sendBtn.addEventListener('click', sendChat);
   chatInput.addEventListener('keydown', (e) => {
-    if(e.key === 'Enter' && !e.shiftKey){
-      e.preventDefault();
-      sendChat();
-    }
+    if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
   });
 
   renderEmpty();
+  initChat();
 })();
 </script>
-
-</body>
-</html>

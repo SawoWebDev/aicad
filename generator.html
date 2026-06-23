@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAD Generator — SAWO</title>
+<!--
+  CMS "CAD Generator" wrapper. This is just the branded page header (with the
+  Supabase log-connectivity status pill) plus an iframe that embeds the single
+  generator UI (conversation-wp.html). Keeping the generator itself in
+  conversation-wp.html means there is ONE generator UI to maintain — the same
+  file is pasted into WordPress and embedded here.
+-->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brown: #AF8564;
+    --brown-deep: #AF8564;
+    --brown-mid: #A67853;
+    --brown-light: #C4A574;
+    --black: #141617;
+    --bg: #faf7f3;
+    --panel: #ffffff;
+    --line: #e7ddd2;
+    --text-dim: #8a7c6e;
+  }
+  *{ box-sizing: border-box; }
+  html, body{ height: 100%; }
+  body{
+    margin: 0;
+    background: var(--bg);
+    color: var(--black);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ── Shared page header (identical across all CMS frames) ── */
+  .page-header{
+    display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
+    border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
+  }
+  .ph-icon{
+    width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
+    box-shadow:0 6px 16px rgba(166,120,83,0.32);
+  }
+  .ph-text h2{ font-size:1.08rem; font-weight:700; margin:0; color:var(--brown-deep); letter-spacing:0.2px; }
+  .ph-text p{ font-size:0.74rem; color:var(--text-dim); margin:1px 0 0; }
+  .actions{ margin-left:auto; display:flex; align-items:center; gap:12px; }
+  .log-status{
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .log-status .dot{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .log-status.connecting .dot{ animation: logpulse 1s ease-in-out infinite; }
+  .log-status.live{ color: #4A9D4A; border-color: rgba(74,157,74,0.35); }
+  .log-status.live .dot{ background: #4A9D4A; box-shadow: 0 0 8px rgba(74,157,74,0.7); }
+  .log-status.error{ color: #C9302C; border-color: rgba(201,48,44,0.35); }
+  .log-status.error .dot{ background: #C9302C; }
+  @keyframes logpulse{ 0%,100%{ opacity: 1; } 50%{ opacity: 0.25; } }
+  @media (max-width: 640px){
+    .log-status #logStatusText{ display: none; }
+    .log-status{ padding: 6px; }
+  }
+
+  /* ── Embedded generator ── */
+  #genFrame{ flex:1; border:none; width:100%; min-height:0; background:var(--bg); }
+</style>
+</head>
+<body>
+
+  <header class="page-header">
+    <div class="ph-icon"><i class="fas fa-compass-drafting"></i></div>
+    <div class="ph-text">
+      <h2>CAD Generator</h2>
+      <p>Technical sauna drawing synthesis</p>
+    </div>
+    <div class="actions">
+      <div class="log-status connecting" id="logStatus" title="Supabase conversation logging">
+        <span class="dot"></span>
+        <span id="logStatusText">Log: connecting…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Single-source generator UI (same file pasted into WordPress). -->
+  <iframe id="genFrame" title="CAD Generator" src="/conversation-wp.html"></iframe>
+
+<script>
+(function(){
+  // Header log-connectivity pill — pings the CMS endpoint (same origin, no row
+  // written) so the header shows whether conversation logging is reachable.
+  const logStatusEl = document.getElementById('logStatus');
+  const logStatusText = document.getElementById('logStatusText');
+  function setLogStatus(state, text){
+    if(!logStatusEl) return;
+    logStatusEl.classList.remove('connecting', 'live', 'error');
+    logStatusEl.classList.add(state);
+    logStatusText.textContent = text;
+  }
+  async function checkLogStatus(){
+    setLogStatus('connecting', 'Log: connecting…');
+    try{
+      const resp = await fetch('/api/conversations?action=ping');
+      if(resp.ok) setLogStatus('live', 'Log: connected');
+      else setLogStatus('error', 'Log: error ' + resp.status);
+    } catch(e){ setLogStatus('error', 'Log: offline'); }
+  }
+  checkLogStatus();
+})();
+</script>
+
+</body>
+</html>

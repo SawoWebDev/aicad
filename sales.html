@@ -74,7 +74,33 @@
   .dh-title{ font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); }
   .meta{ font-size:0.72rem; color:var(--text-dim); }
   .meta b{ color:var(--black); font-weight:600; }
-  .copy-link{ margin-left:auto; }
+  /* Manual sales handoff button — sits next to Copy link, styled as the filled
+     primary action so it reads as the deliberate "send" step. */
+  .send-sales{ border-color:transparent; background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; }
+  .send-sales:hover{ border-color:transparent; background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; filter:brightness(1.06); }
+  .send-sales:disabled{ opacity:0.55; cursor:not-allowed; filter:none; }
+  /* Clean detail header: a title (client name + subject) on the left, the three
+     actions on the right, and a collapsible meta panel toggled by "Details". */
+  .dh-row{ display:flex; align-items:center; gap:14px; width:100%; }
+  .dh-titlewrap{ min-width:0; }
+  .dh-name{ font-size:0.98rem; font-weight:700; color:var(--brown-deep); line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dh-name i{ color:var(--brown-mid); margin-right:4px; }
+  .dh-subject{ font-size:0.78rem; color:var(--text-dim); line-height:1.3; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .dh-actions{ margin-left:auto; display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .btn.active{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
+  .dh-meta-panel{ width:100%; margin-top:12px; padding:12px 16px; background:var(--bg); border:1px solid var(--line); border-radius:10px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px 20px; }
+  .dh-meta-panel .m{ font-size:0.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; }
+  .dh-meta-panel .m b{ display:block; margin-top:3px; font-size:0.84rem; font-weight:600; color:var(--black); text-transform:none; letter-spacing:0; word-break:break-word; }
+  .dh-sendresult{ width:100%; margin-top:10px; font-size:0.8rem; font-weight:600; color:#4A9D4A; display:flex; align-items:center; gap:8px; }
+  .dh-sendresult.err{ color:#C9302C; }
+  /* txt block toolbar (toggle + copy) */
+  .txtblock-head{ display:flex; align-items:center; gap:10px; }
+  .txtblock-copy{ display:inline-flex; align-items:center; gap:7px; background:transparent; border:1px solid var(--line); border-radius:8px; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.74rem; letter-spacing:0.04em; text-transform:uppercase; padding:7px 13px; cursor:pointer; }
+  .txtblock-copy:hover{ border-color:var(--brown-mid); }
+  /* image lightbox */
+  #logLightbox{ position:fixed; inset:0; background:rgba(20,22,23,0.92); display:none; align-items:center; justify-content:center; z-index:99999; padding:28px; cursor:zoom-out; }
+  #logLightbox.show{ display:flex; }
+  #logLightbox img{ max-width:100%; max-height:100%; border:2px solid var(--brown-mid); border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
   #detailBody{ flex:1; overflow-y:auto; min-height:0; padding:20px; background:var(--bg); }
   #detailBody::-webkit-scrollbar{ width:8px; }
   #detailBody::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
@@ -133,6 +159,8 @@
     </div>
   </div>
 
+  <div id="logLightbox"><img id="logLightboxImg" src="" alt="Generated drawing full size" /></div>
+
 <script src="/cms.js"></script>
 <script>
 (function(){
@@ -143,6 +171,14 @@
   const detailHead = document.getElementById('detailHead');
   const detailBody = document.getElementById('detailBody');
   const search = document.getElementById('search');
+
+  // Fullscreen image viewer for the generated drawing in the logs.
+  const logLightbox = document.getElementById('logLightbox');
+  const logLightboxImg = document.getElementById('logLightboxImg');
+  function openLightbox(url){ if(!url) return; logLightboxImg.src = url; logLightbox.classList.add('show'); }
+  function closeLightbox(){ logLightbox.classList.remove('show'); }
+  logLightbox.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeLightbox(); });
 
   const TRIGGER_TAG = '[READY_TO_GENERATE]';
   // Deep-link target (set when opened via a conversation permalink).
@@ -181,6 +217,13 @@
     const u = msgs.find(m => m.role === 'user');
     return u ? u.content : '(no client message yet)';
   }
+  // Conversation name = the client's name (their email or a placeholder when no
+  // name was captured). The subject line below it is the client's first message.
+  function convName(s){
+    return (s.client_name && s.client_name.trim())
+        || (s.client_email && s.client_email.trim())
+        || 'Unnamed client';
+  }
 
   function renderList(){
     const q = search.value.trim().toLowerCase();
@@ -206,9 +249,7 @@
             (s.sent_to_sales ? '<span class="badge sales"><i class="fas fa-paper-plane"></i> sales</span>' : '') +
           '</span>' +
         '</div>' +
-        ((s.client_name || s.client_email)
-          ? '<div class="si-contact"><i class="fas fa-user"></i> ' + esc([s.client_name, s.client_email].filter(Boolean).join(' · ')) + '</div>'
-          : '') +
+        '<div class="si-contact"><i class="fas fa-user"></i> ' + esc(convName(s)) + '</div>' +
         '<div class="si-snippet">' + esc(firstUserMsg(s)) + '</div>';
       item.addEventListener('click', () => { activeId = s.session_id; renderList(); renderDetail(s); });
       sessionList.appendChild(item);
@@ -219,24 +260,38 @@
     const msgs = Array.isArray(s.messages) ? s.messages : [];
     const permalink = location.origin + '/cms/conversations/' + encodeURIComponent(s.session_id);
 
-    // Lead contact details captured before the sauna chat (shown when present).
-    const contactBits = [];
-    if(s.client_name) contactBits.push('<span class="meta"><i class="fas fa-user"></i> <b>' + esc(s.client_name) + '</b></span>');
-    if(s.client_email) contactBits.push('<span class="meta"><i class="fas fa-envelope"></i> <b>' + esc(s.client_email) + '</b></span>');
-    if(s.client_phone) contactBits.push('<span class="meta"><i class="fas fa-phone"></i> <b>' + esc(s.client_phone) + '</b></span>');
-    if(s.client_location) contactBits.push('<span class="meta"><i class="fas fa-location-dot"></i> <b>' + esc(s.client_location) + '</b></span>');
+    // Session metadata + lead contact details — tucked behind the Details toggle
+    // so the header stays clean (title + actions only).
+    const metaRows = [
+      ['Started', esc(fmt(s.created_at))],
+      ['Updated', esc(fmt(s.updated_at))],
+      ['Messages', String(msgs.length)],
+      ['Image', s.image_generated ? 'yes' : 'no'],
+      ['Sales', s.sent_to_sales ? ('yes, ' + esc(fmt(s.sent_to_sales_at))) : 'no'],
+      ['Session ID', esc((s.session_id || '').slice(0, 8))],
+    ];
+    if(s.client_email) metaRows.push(['Email', esc(s.client_email)]);
+    if(s.client_phone) metaRows.push(['Phone', esc(s.client_phone)]);
+    if(s.client_location) metaRows.push(['Location', esc(s.client_location)]);
 
-    detailHead.style.display = 'flex';
+    detailHead.style.display = 'block';
     detailHead.innerHTML =
-      '<span class="dh-title"><i class="fas fa-comment-dots"></i> Session</span>' +
-      contactBits.join('') +
-      '<span class="meta">Started: <b>' + esc(fmt(s.created_at)) + '</b></span>' +
-      '<span class="meta">Updated: <b>' + esc(fmt(s.updated_at)) + '</b></span>' +
-      '<span class="meta">Messages: <b>' + msgs.length + '</b></span>' +
-      '<span class="meta">Image: <b>' + (s.image_generated ? 'yes' : 'no') + '</b></span>' +
-      '<span class="meta">Sales: <b>' + (s.sent_to_sales ? ('yes — ' + esc(fmt(s.sent_to_sales_at))) : 'no') + '</b></span>' +
-      '<span class="meta">ID: <b>' + esc((s.session_id || '').slice(0, 8)) + '</b></span>' +
-      '<button class="btn copy-link" id="copyLink"><i class="fas fa-link"></i> Copy link</button>';
+      '<div class="dh-row">' +
+        '<div class="dh-titlewrap">' +
+          '<div class="dh-name"><i class="fas fa-user"></i>' + esc(convName(s)) + '</div>' +
+          '<div class="dh-subject">' + esc(firstUserMsg(s)) + '</div>' +
+        '</div>' +
+        '<div class="dh-actions">' +
+          '<button class="btn copy-link" id="copyLink"><i class="fas fa-link"></i> Copy link</button>' +
+          '<button class="btn send-sales" id="sendSales"><i class="fas fa-paper-plane"></i> ' +
+            (s.sent_to_sales ? 'Resend to sales' : 'Send to sales') + '</button>' +
+          '<button class="btn" id="detailsBtn"><i class="fas fa-circle-info"></i> Details</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="dh-meta-panel" id="metaPanel" style="display:none;">' +
+        metaRows.map(function(r){ return '<div class="m">' + r[0] + '<b>' + r[1] + '</b></div>'; }).join('') +
+      '</div>' +
+      '<div class="dh-sendresult" id="sendResult" style="display:none;"></div>';
 
     let html = '<div class="transcript">';
     if(!msgs.length){
@@ -256,7 +311,11 @@
         '<img class="gen-image" src="' + esc(s.image_url) + '" alt="Generated CAD drawing" title="Open full size" /></div>';
     }
     if(s.txt_block){
-      html += '<div class="txtblock-wrap"><button class="txtblock-toggle" id="txtToggle"><i class="fas fa-file-lines"></i> Generated txt block</button>' +
+      html += '<div class="txtblock-wrap">' +
+        '<div class="txtblock-head">' +
+          '<button class="txtblock-toggle" id="txtToggle"><i class="fas fa-file-lines"></i> Generated txt block</button>' +
+          '<button class="txtblock-copy" id="txtCopy"><i class="fas fa-copy"></i> Copy</button>' +
+        '</div>' +
         '<pre class="txtblock" id="txtPre" style="display:none;">' + esc(s.txt_block) + '</pre></div>';
     }
     detailBody.innerHTML = html;
@@ -268,13 +327,75 @@
         setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-link"></i> Copy link'; }, 1500);
       });
     });
+
+    // Details toggle: show/hide the session + contact metadata panel.
+    const detailsBtn = document.getElementById('detailsBtn');
+    if(detailsBtn) detailsBtn.addEventListener('click', () => {
+      const panel = document.getElementById('metaPanel');
+      if(!panel) return;
+      const show = panel.style.display === 'none';
+      panel.style.display = show ? 'grid' : 'none';
+      detailsBtn.classList.toggle('active', show);
+    });
+
+    // Manual sales handoff: flags the session and fires the same server-side
+    // email (notifySales → WP mail relay) the public widget uses. Surfaces the
+    // REAL send result — on success it also shows the recipient the email went
+    // to; if no recipient is configured, it says exactly that.
+    const sendBtn = document.getElementById('sendSales');
+    if(sendBtn) sendBtn.addEventListener('click', async () => {
+      const original = sendBtn.innerHTML;
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending…';
+      try{
+        const res = await CMS.send('POST', '/api/conversations?action=sendToSales', { sessionId: s.session_id });
+        const n = res.notification || {};
+        // Reflect the flag locally so the badge + button label update live.
+        s.sent_to_sales = true;
+        s.sent_to_sales_at = new Date().toISOString();
+        const row = sessions.find(x => x.session_id === s.session_id);
+        if(row){ row.sent_to_sales = true; row.sent_to_sales_at = s.sent_to_sales_at; }
+        if(n.sent){
+          CMS.toast('Sent to sales — email delivered.', 'ok');
+        } else {
+          CMS.toast(n.error || 'Flagged for sales, but the email was not sent.', 'err');
+        }
+        renderList();
+        renderDetail(s);   // rebuilds the header (button now reads "Resend to sales")
+        // renderDetail recreated #sendResult — populate it with the outcome.
+        const sr = document.getElementById('sendResult');
+        if(sr){
+          if(n.sent){
+            sr.className = 'dh-sendresult';
+            sr.innerHTML = '<i class="fas fa-circle-check"></i> Email sent to ' + esc(n.recipient || 'the sales team') + '.';
+          } else {
+            sr.className = 'dh-sendresult err';
+            sr.innerHTML = '<i class="fas fa-triangle-exclamation"></i> ' + esc(n.error || 'Flagged for sales, but the email was not sent.');
+          }
+          sr.style.display = 'flex';
+        }
+      }catch(e){
+        CMS.toast(e.message || 'Could not send to sales.', 'err');
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = original;
+      }
+    });
+
     const toggle = document.getElementById('txtToggle');
     if(toggle) toggle.addEventListener('click', () => {
       const pre = document.getElementById('txtPre');
       pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
     });
+    // Copy the full generated prompt (the raw txt block) to the clipboard.
+    const txtCopy = document.getElementById('txtCopy');
+    if(txtCopy) txtCopy.addEventListener('click', () => {
+      navigator.clipboard.writeText(s.txt_block || '').then(() => {
+        txtCopy.innerHTML = '<i class="fas fa-check"></i> Copied';
+        setTimeout(() => { txtCopy.innerHTML = '<i class="fas fa-copy"></i> Copy'; }, 1500);
+      });
+    });
     const genImg = detailBody.querySelector('.gen-image');
-    if(genImg) genImg.addEventListener('click', () => window.open(s.image_url, '_blank'));
+    if(genImg) genImg.addEventListener('click', () => openLightbox(s.image_url));
   }
 
   function showError(title, detail){

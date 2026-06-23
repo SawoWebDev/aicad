@@ -253,7 +253,10 @@ export async function notifySales(sessionId) {
 
   if (!recipient) {
     console.log('[notifySales] no sales_notification_email configured — not sent.');
-    return { queued: false, sent: false, permalink, sessionId };
+    return {
+      queued: false, sent: false, permalink, sessionId,
+      error: 'No sales notification email is configured. Set one in CMS Settings (sales notification email).',
+    };
   }
 
   let imageBytes = null;
@@ -308,10 +311,10 @@ export async function notifySales(sessionId) {
       to: recipient, subject, message: html, html: true,
       attachments: attachments.length ? attachments : undefined,
     });
-    return { queued: true, sent: true, permalink, sessionId };
+    return { queued: true, sent: true, recipient, permalink, sessionId };
   } catch (e) {
     console.error('[notifySales] send failed:', e?.message || e);
-    return { queued: true, sent: false, error: e?.message || String(e), permalink, sessionId };
+    return { queued: true, sent: false, recipient, error: e?.message || String(e), permalink, sessionId };
   }
 }
 
