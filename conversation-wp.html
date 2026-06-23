@@ -101,6 +101,16 @@
     border-bottom: 1px solid rgba(0,0,0,0.06);
   }
   #sawocad-app .sc-col-head i{ color: rgba(255,255,255,0.85); }
+  /* "New chat" / clear button on the conversation header */
+  #sawocad-app .sc-col-head .sc-clear{
+    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Montserrat', sans-serif !important;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #fff; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.35);
+    padding: 5px 10px; border-radius: 7px; cursor: pointer; transition: background 0.2s;
+  }
+  #sawocad-app .sc-col-head .sc-clear i{ color: #fff; }
+  #sawocad-app .sc-col-head .sc-clear:hover{ background: rgba(255,255,255,0.30); }
 
   /* ── Chat ── */
   #sawocad-app #sc-chatThread{
@@ -289,7 +299,9 @@
   <div class="sc-grid">
     <!-- conversation -->
     <div class="sc-col">
-      <div class="sc-col-head"><i class="fas fa-comments"></i> Drawing Assistant</div>
+      <div class="sc-col-head"><i class="fas fa-comments"></i> Drawing Assistant
+        <button id="sc-clearBtn" class="sc-clear" title="Start a new conversation"><i class="fas fa-rotate-left"></i> New chat</button>
+      </div>
       <div id="sc-chatThread"></div>
       <div class="sc-input-row">
         <textarea id="sc-chatInput" placeholder="Sauna for 5 persons."></textarea>
@@ -690,15 +702,52 @@ ${REFERENCE_TEMPLATE}`;
   let progTimer = null;
   let progValue = 0;
 
-  const sessionId = (crypto.randomUUID && crypto.randomUUID())
-    || ('sess-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+  function newSessionId(){
+    return (crypto.randomUUID && crypto.randomUUID())
+      || ('sess-' + Date.now() + '-' + Math.random().toString(16).slice(2));
+  }
+  let sessionId = newSessionId();
   let loggedTxtBlock = null;
   let loggedImageGenerated = false;
   let loggedImageUrl = null;
   let salesPrompted = false;
 
+  // ── Conversation persistence (CMS only) ──────────────────────────────────
+  // In the CMS the generator lives in an iframe that is destroyed when you
+  // switch menus, which wiped the chat. We snapshot the conversation to
+  // sessionStorage so returning to the generator restores it. Scoped to the
+  // embedded (CMS) case so the standalone WordPress widget is unchanged.
+  const PERSIST = isEmbedded;
+  const STATE_KEY = 'sawocad-convo';
+  function saveState(){
+    if(!PERSIST) return;
+    const snap = {
+      sessionId, history, lead, leadStage,
+      currentImageUrl, loggedTxtBlock, loggedImageGenerated, loggedImageUrl, salesPrompted,
+    };
+    try{
+      sessionStorage.setItem(STATE_KEY, JSON.stringify(snap));
+    }catch(e){
+      // Likely a quota hit from a large base64 image. Retry without the heavy
+      // image data so the conversation text still persists (preview won't be
+      // restored, but the chat survives navigation).
+      try{
+        snap.currentImageUrl = null; snap.loggedImageUrl = null;
+        sessionStorage.setItem(STATE_KEY, JSON.stringify(snap));
+      }catch(e2){ /* unavailable — non-fatal */ }
+    }
+  }
+  function loadState(){
+    if(!PERSIST) return null;
+    try{ return JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null'); }
+    catch(e){ return null; }
+  }
+
   // Fire-and-forget session logging (only once the client has actually spoken).
   async function logSession(){
+    // Snapshot to sessionStorage on every logged change so the CMS can restore
+    // the conversation after navigating away and back.
+    saveState();
     const clientSpoke = Array.isArray(history) && history.some(m => m && m.role === 'user' && String(m.content || '').trim());
     if(!clientSpoke) return;
     try{
@@ -817,6 +866,43 @@ ${REFERENCE_TEMPLATE}`;
     chatThread.innerHTML = '';
     history = [];
     botSay("Hi! Let’s put together your sauna drawing. Can you share the room size (outer and or inner), bench heights, ceiling height, and if you want a single or double door? If you have any extras in mind like LEDs, controls, window style, stone inlay, etc., just include them as well and I’ll note them under remarks. Once I have the details and you confirm, I’ll generate the drawing automatically.");
+  }
+
+  // Rebuild the chat + preview from a saved snapshot (CMS return-to-generator).
+  function restoreState(s){
+    sessionId = s.sessionId || sessionId;
+    history = Array.isArray(s.history) ? s.history : [];
+    if(s.lead){ lead.name = s.lead.name || ''; lead.email = s.lead.email || ''; lead.phone = s.lead.phone || ''; lead.location = s.lead.location || ''; }
+    leadStage = s.leadStage || 'pending';
+    loggedTxtBlock = s.loggedTxtBlock || null;
+    loggedImageGenerated = !!s.loggedImageGenerated;
+    loggedImageUrl = s.loggedImageUrl || null;
+    salesPrompted = !!s.salesPrompted;
+
+    chatThread.innerHTML = '';
+    history.forEach(m => {
+      if(m.role === 'user'){ addMsg('user', m.content); }
+      else {
+        const text = String(m.content || '').replace('[READY_TO_GENERATE]', '').trim();
+        if(text) addMsg('bot', text, { ai: true, model: friendlyModel(m.model) });
+      }
+    });
+    if(s.currentImageUrl){ renderImage(s.currentImageUrl); } else { renderEmpty(); }
+  }
+
+  // Reset everything to a clean state and start a fresh session (Clear button).
+  function clearConversation(){
+    if(PERSIST){ try{ sessionStorage.removeItem(STATE_KEY); }catch(e){} }
+    sessionId = newSessionId();
+    history = [];
+    lead.name = lead.email = lead.phone = lead.location = '';
+    leadStage = 'pending';
+    currentImageUrl = null;
+    loggedTxtBlock = null; loggedImageGenerated = false; loggedImageUrl = null;
+    salesPrompted = false;
+    busy = false; sendBtn.disabled = false;
+    renderEmpty();
+    initChat();
   }
 
   async function callChatModel(messages, systemPrompt, phase){
@@ -1126,8 +1212,22 @@ ${REFERENCE_TEMPLATE}`;
     if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendChat(); }
   });
 
+  // Clear / new conversation.
+  const clearBtn = document.getElementById('sc-clearBtn');
+  if(clearBtn) clearBtn.addEventListener('click', () => {
+    const hasConvo = history.some(m => m && m.role === 'user');
+    if(hasConvo && !confirm('Clear this conversation and start over?')) return;
+    clearConversation();
+  });
+
   renderEmpty();
-  initChat();
+  // Restore a saved conversation (CMS) if one exists; otherwise start fresh.
+  const saved = loadState();
+  if(saved && Array.isArray(saved.history) && saved.history.length){
+    restoreState(saved);
+  } else {
+    initChat();
+  }
   loadModelConfig();
 })();
 </script>

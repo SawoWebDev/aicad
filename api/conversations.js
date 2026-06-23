@@ -9,7 +9,7 @@
 // calls; they use the service-role key server-side so the browser needs no DB key.
 // ─────────────────────────────────────────────────────────────────────────
 import {
-  serviceClient, requireSession, notifySales, applyCors, readJsonBody,
+  serviceClient, requireSession, requireRole, notifySales, applyCors, readJsonBody,
 } from './_lib.js';
 
 const TABLE = 'cad_conversations';
@@ -107,6 +107,22 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: 'Conversation not found' });
       return res.status(200).json({ session: data });
+    }
+
+    // ── AUTH (admin only): delete one or more sessions ──
+    if (action === 'delete') {
+      const session = await requireRole(req, res, 'admin');
+      if (!session) return;
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+      const b = await readJsonBody(req);
+      const ids = Array.isArray(b.sessionIds)
+        ? b.sessionIds.filter(Boolean)
+        : (b.sessionId ? [b.sessionId] : []);
+      if (!ids.length) return res.status(400).json({ error: 'sessionIds[] (or sessionId) is required' });
+      const svc = serviceClient();
+      const { error } = await svc.from(TABLE).delete().in('session_id', ids);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json({ ok: true, deleted: ids.length });
     }
 
     return res.status(400).json({ error: 'Unknown action' });

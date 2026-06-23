@@ -512,8 +512,35 @@
   function clearDirty(){
     dirty = false; dirtyBadge.classList.add('hidden');
   }
-  // Track changes on all settings fields
-  ['sKey','sConvoModel','sChatModel','sImageModel','sImageSize','sImageRatio','sSalesEmail'].forEach(function(id){
+  // Auto-save helper: persists a partial settings change immediately + toasts.
+  async function autoSave(patch, label){
+    try{
+      await CMS.send('PUT', '/api/admin?resource=settings', patch);
+      CMS.toast(label || 'Saved', 'ok');
+    }catch(e){
+      CMS.toast(e.message || 'Could not save', 'err');
+    }
+  }
+
+  // Model-pipeline selects take effect immediately: auto-saved + toast, with the
+  // Mode-2 flow preview kept in sync. No "unsaved changes" state for these.
+  const AUTO_FIELDS = {
+    sConvoModel: ['convo_model', 'Conversation model'],
+    sChatModel:  ['chat_model',  'Chat model'],
+    sImageModel: ['image_model', 'Image model'],
+    sImageSize:  ['image_size',  'Image size'],
+    sImageRatio: ['image_aspect_ratio', 'Aspect ratio'],
+  };
+  Object.keys(AUTO_FIELDS).forEach(function(id){
+    var field = AUTO_FIELDS[id][0], label = AUTO_FIELDS[id][1];
+    document.getElementById(id).addEventListener('change', function(){
+      autoSave({ [field]: this.value }, label + ' saved');
+      if(getMode() === 2) renderModeFlow();
+    });
+  });
+
+  // The API key and sales email still use the explicit Save button (dirty-tracked).
+  ['sKey','sSalesEmail'].forEach(function(id){
     var el = document.getElementById(id);
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
@@ -555,13 +582,12 @@
       if(m === getMode()) return;
       setMode(m);
       syncPipelineUI();
-      markDirty();
+      // Mode is applied immediately so the generator uses it without a manual save.
+      autoSave({ pipeline_mode: m }, 'Pipeline mode ' + m + ' saved');
     });
   });
-  // Keep the Mode-2 flow preview in sync when the chosen models change.
-  ['sConvoModel','sChatModel','sImageModel'].forEach(function(id){
-    document.getElementById(id).addEventListener('change', function(){ if(getMode() === 2) renderModeFlow(); });
-  });
+  // (Model-select changes auto-save and refresh the Mode-2 flow preview — see
+  // the AUTO_FIELDS handlers above.)
   window.addEventListener('beforeunload', function(e){
     if(dirty){ e.preventDefault(); e.returnValue = ''; }
   });
