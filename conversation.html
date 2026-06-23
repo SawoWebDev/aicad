@@ -264,6 +264,20 @@
   .msg.bot .who{ color: var(--brown-mid); }
   .msg.user .who{ color: rgba(255,255,255,0.8); }
 
+  /* Typing indicator shown while the assistant is preparing a reply */
+  .typing-dots{ display: inline-flex; align-items: center; gap: 5px; padding: 3px 2px; }
+  .typing-dots span{
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--brown-mid); opacity: 0.4;
+    animation: typing-bounce 1.2s infinite ease-in-out both;
+  }
+  .typing-dots span:nth-child(2){ animation-delay: 0.15s; }
+  .typing-dots span:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes typing-bounce{
+    0%, 80%, 100%{ transform: translateY(0); opacity: 0.4; }
+    40%{ transform: translateY(-5px); opacity: 1; }
+  }
+
   .chat-input-row{
     border-top: 1px solid var(--line);
     padding: 12px;
@@ -395,6 +409,28 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--brown-deep);
+  }
+  .scan-progress{
+    width: 320px;
+    max-width: 70vw;
+    height: 8px;
+    margin: 14px auto 8px;
+    background: var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .scan-progress-fill{
+    height: 100%;
+    width: 0%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, var(--brown-mid) 0%, var(--brown-light) 100%);
+    transition: width 0.3s ease;
+  }
+  .scan-pct{
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--brown-deep);
+    letter-spacing: 0.04em;
   }
 
   .out-actions{
@@ -751,6 +787,7 @@ Your scope, strictly:
 - Sauna room topics: focus on measurements (outer width/height/depth, inner clear dimensions, wall thickness, bench heights and depths, ceiling/room height, floor-to-bench dimensions) and door type (ask explicitly: single door or double door).
 - Accessories topics: anything that is not core room structure (e.g. LED lighting preferences, additional control panels, speakers, extra vents, towel hooks, glass window style, stone inlay, etc.) — these all get placed into the REMARKS section of the final output, never mixed into the dimensional sections.
 - Stay on these two topics only. If the user goes off-topic, gently steer back to sauna measurements, door type, or accessories/remarks.
+- The client's contact details (name, email, phone, and optional location) are collected separately before this conversation begins. Never ask for the client's name, email, phone number, or any contact information — focus only on sauna room measurements, door type, and accessories.
 - Be concise and conversational. Ask one or two focused questions at a time, don't interrogate with a long list.
 - Once you believe you have enough information (at minimum: outer room size, inner room size or wall thickness, bench heights, room height, and door type), tell the user you have enough to generate the txt block, and that they can click "Generate txt block."
 
@@ -781,6 +818,19 @@ ${REFERENCE_TEMPLATE}`;
   let history = [];          // {role, content}
   let currentImageUrl = null;
   let busy = false;
+
+  // ── Lead capture (collected before the AI dives into sauna specs) ──
+  let leadStage = 'preference';  // preference → name → email → phone → location → done
+  const lead = { name:'', email:'', phone:'', location:'' };
+  const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim());
+  const isValidPhone = (s) => {
+    const v = String(s).trim();
+    return /^[+]?[\d\s().-]{7,}$/.test(v) && v.replace(/\D/g, '').length >= 7;
+  };
+
+  // ── Image-generation progress (simulated; the image API gives no events) ──
+  let progTimer = null;
+  let progValue = 0;
 
   // ── Conversation logging (via CMS server proxy — no DB key in the browser) ──
   const sessionId = (crypto.randomUUID && crypto.randomUUID())
@@ -823,6 +873,7 @@ ${REFERENCE_TEMPLATE}`;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: sessionId,
+          lead: lead,
           messages: history,
           txt_block: loggedTxtBlock,
           image_generated: loggedImageGenerated,
@@ -854,6 +905,24 @@ ${REFERENCE_TEMPLATE}`;
   }, 50);
 
   // ── Chat rendering ──
+  // Escape HTML, then render a tiny safe subset of markdown so the assistant's
+  // **bold** labels show as real bold instead of literal asterisks. Only
+  // <strong>/<em> are injected into already-escaped text, so this is XSS-safe.
+  function escapeHtml(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+  function renderRich(text){
+    let h = escapeHtml(text);
+    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+         .replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[^*])\*(?!\*)([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    h = h.replace(/\*/g, '');   // strip any leftover stray asterisks
+    return h;
+  }
+
   function addMsg(role, text){
     const div = document.createElement('div');
     div.className = 'msg ' + role;
@@ -862,7 +931,13 @@ ${REFERENCE_TEMPLATE}`;
       who.className = 'who';
       who.textContent = role === 'user' ? 'YOU' : 'ASSISTANT';
       div.appendChild(who);
-      div.appendChild(document.createTextNode(text));
+      if(role === 'bot'){
+        const body = document.createElement('span');
+        body.innerHTML = renderRich(text);
+        div.appendChild(body);
+      } else {
+        div.appendChild(document.createTextNode(text));
+      }
     } else {
       div.textContent = text;
     }
@@ -873,6 +948,23 @@ ${REFERENCE_TEMPLATE}`;
 
   function addSysMsg(text){
     return addMsg('sys', text);
+  }
+
+  // Animated "assistant is typing" bubble shown while we await the model reply.
+  function addTyping(){
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+    const who = document.createElement('span');
+    who.className = 'who';
+    who.textContent = 'ASSISTANT';
+    div.appendChild(who);
+    const dots = document.createElement('div');
+    dots.className = 'typing-dots';
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    div.appendChild(dots);
+    chatThread.appendChild(div);
+    chatThread.scrollTop = chatThread.scrollHeight;
+    return div;
   }
 
   function initChat(){
@@ -930,9 +1022,34 @@ ${REFERENCE_TEMPLATE}`;
       <div class="scan-wrap">
         <div class="scan"></div>
         <div class="scan-label">${label}</div>
+        <div class="scan-progress"><div class="scan-progress-fill" id="scanFill"></div></div>
+        <div class="scan-pct" id="scanPct">0%</div>
       </div>`;
     outActions.classList.remove('visible');
+    setProgress(progValue);
   }
+
+  // Simulated progress bar: the image API returns no progress events, so ease
+  // toward ~90% while we wait, then snap to 100% on completion.
+  function setProgress(p){
+    progValue = p;
+    const fill = document.getElementById('scanFill');
+    const pct = document.getElementById('scanPct');
+    if(fill) fill.style.width = p + '%';
+    if(pct) pct.textContent = Math.round(p) + '%';
+  }
+  function startProgress(){
+    stopProgress();
+    setProgress(0);
+    progTimer = setInterval(() => {
+      if(progValue < 90){
+        const step = Math.max(0.5, (90 - progValue) * 0.06); // decelerate near the ceiling
+        setProgress(Math.min(90, progValue + step));
+      }
+    }, 250);
+  }
+  function finishProgress(){ stopProgress(); setProgress(100); }
+  function stopProgress(){ if(progTimer){ clearInterval(progTimer); progTimer = null; } }
 
   function renderError(message){
     output.innerHTML = '';
@@ -989,6 +1106,7 @@ ${REFERENCE_TEMPLATE}`;
     try{
       // Step 1 — generate the txt block from conversation history
       renderScan('Generating drawing dataset…');
+      startProgress();
       const conversationDump = history.map(m => (m.role === 'user' ? 'CLIENT: ' : 'ASSISTANT: ') + m.content).join('\n\n');
       const reply = await callChatModel(
         [{ role: 'user', content: 'Here is the full conversation so far:\n\n' + conversationDump + '\n\nProduce the final txt block now, following the reference template structure exactly, using the gathered sauna measurements/door type and placing any accessories under REMARKS.' }],
@@ -1008,6 +1126,7 @@ ${REFERENCE_TEMPLATE}`;
       const fullPrompt = IMAGE_SYSTEM_PREFIX + txtBlock;
       const imageUrl = await callImageModel(fullPrompt);
 
+      finishProgress();
       renderImage(imageUrl);
       addSysMsg('Drawing generated.');
       loggedImageGenerated = true;
@@ -1017,6 +1136,7 @@ ${REFERENCE_TEMPLATE}`;
       // Feature 1 — after the image renders, offer to hand off to sales.
       promptSendToSales();
     } catch(err){
+      stopProgress();
       renderError(err.message || String(err));
       addSysMsg('Error: ' + (err.message || String(err)));
     }
@@ -1060,19 +1180,61 @@ ${REFERENCE_TEMPLATE}`;
     });
   }
 
-  // ── Send chat ──
-  async function sendChat(){
-    if(busy) return;
-    const text = chatInput.value.trim();
-    if(!text) return;
+  // ── Lead capture ──
+  // Bot question helper: shows the question AND records it in history so the
+  // captured details appear in the saved transcript.
+  function askBot(text){
+    addMsg('bot', text);
+    history.push({ role: 'assistant', content: text });
+    logSession();
+  }
 
-    addMsg('user', text);
-    history.push({ role: 'user', content: text });
-    chatInput.value = '';
+  // Sequential lead capture: Name → Email → Phone → Location (optional). Runs
+  // before the AI conversation; only when complete does the model take over.
+  function advanceLead(text){
+    const val = text.trim();
+    switch(leadStage){
+      case 'preference':
+        // The client's first message is their initial sauna preference; it is
+        // already in history. Now start collecting their contact details.
+        leadStage = 'name';
+        askBot("Great — I'd love to help with that. First, could I get your name?");
+        break;
+      case 'name':
+        if(!val){ askBot("Sorry, I didn't catch that — what's your name?"); break; }
+        lead.name = val;
+        leadStage = 'email';
+        askBot("Thanks, " + lead.name + "! What's the best email address to reach you at?");
+        break;
+      case 'email':
+        if(!isValidEmail(val)){ askBot("That doesn't look like a valid email address. Could you re-enter it? (e.g. name@company.com)"); break; }
+        lead.email = val;
+        leadStage = 'phone';
+        askBot("Got it. And your phone number?");
+        break;
+      case 'phone':
+        if(!isValidPhone(val)){ askBot("That phone number doesn't look quite right. Could you re-enter it, including the country/area code?"); break; }
+        lead.phone = val;
+        leadStage = 'location';
+        askBot("Thanks! Which country are you in? (optional — type your country, or \"skip\")");
+        break;
+      case 'location':
+        if(val && !/^skip$/i.test(val)) lead.location = val;
+        leadStage = 'done';
+        logSession();
+        // Hand off to the assistant to continue into the sauna specs.
+        runAssistant();
+        break;
+    }
+  }
+
+  // ── Assistant turn (model call + ready-to-generate trigger) ──
+  async function runAssistant(){
+    if(busy) return;
     busy = true;
     sendBtn.disabled = true;
 
-    const typingEl = addMsg('bot', '…');
+    const typingEl = addTyping();
 
     try{
       const reply = await callChatModel(history, SYSTEM_PROMPT);
@@ -1097,6 +1259,26 @@ ${REFERENCE_TEMPLATE}`;
       sendBtn.disabled = false;
       chatInput.focus();
     }
+  }
+
+  // ── Send chat ──
+  async function sendChat(){
+    if(busy) return;
+    const text = chatInput.value.trim();
+    if(!text) return;
+
+    addMsg('user', text);
+    history.push({ role: 'user', content: text });
+    chatInput.value = '';
+
+    // Collect the client's contact details before the AI conversation begins.
+    if(leadStage !== 'done'){
+      logSession();
+      advanceLead(text);
+      return;
+    }
+
+    await runAssistant();
   }
 
   sendBtn.addEventListener('click', sendChat);

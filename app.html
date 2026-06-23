@@ -141,7 +141,16 @@
   const boot = document.getElementById('boot');
   const layout = document.getElementById('layout');
   const params = new URLSearchParams(location.search);
-  const deepConversation = params.get('conversation');
+  // Conversation permalink target. The email link /cms/conversations/:id is
+  // *rewritten* (not redirected) to /app?conversation=:id, so the browser URL
+  // keeps the original path and the injected ?conversation= query is invisible
+  // to client JS. Parse the id from the path too so email permalinks open the
+  // exact conversation instead of falling back to the most recent one.
+  let deepConversation = params.get('conversation');
+  if(!deepConversation){
+    const m = location.pathname.match(/\/cms\/conversations\/([^\/?#]+)/);
+    if(m && m[1]) deepConversation = decodeURIComponent(m[1]);
+  }
 
   // ── Sidebar collapse (persisted) ──
   const collapseBtn = document.getElementById('collapseBtn');

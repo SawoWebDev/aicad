@@ -6,6 +6,6 @@
   ],
   "rewrites": [
     { "source": "/app", "destination": "/app.html" },
-    { "source": "/cms/conversations/:id", "destination": "/app.html?conversation=:id" }
+    { "source": "/cms/conversations/:id", "destination": "/app?conversation=:id" }
   ]
 }

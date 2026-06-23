@@ -44,6 +44,9 @@ export default async function handler(req, res) {
       // showed up as empty "(no client message yet)" logs. Ack without writing.
       if (!hasClientMessage(b.messages)) return res.status(200).json({ ok: true, skipped: true });
 
+      // Lead contact details captured by the widget before the sauna chat.
+      const lead = b.lead && typeof b.lead === 'object' ? b.lead : {};
+      const blank = (v) => (v && String(v).trim() ? String(v).trim() : null);
       const row = {
         session_id: b.session_id,
         updated_at: new Date().toISOString(),
@@ -52,6 +55,10 @@ export default async function handler(req, res) {
         image_generated: !!b.image_generated,
         image_url: b.image_url ?? null,
         user_agent: b.user_agent ?? null,
+        client_name: blank(lead.name),
+        client_email: blank(lead.email),
+        client_phone: blank(lead.phone),
+        client_location: blank(lead.location),
       };
       const svc = serviceClient();
       const { error } = await svc.from(TABLE).upsert(row, { onConflict: 'session_id' });

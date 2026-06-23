@@ -68,6 +68,7 @@
   .badge.noimg{ background:rgba(138,124,110,0.12); color:var(--text-dim); }
   .badge.msgs{ background:rgba(166,120,83,0.12); color:var(--brown-deep); }
   .badge.sales{ background:rgba(139,94,60,0.16); color:var(--brown-deep); }
+  .si-contact{ font-size:0.72rem; font-weight:600; color:var(--brown-deep); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
   .si-snippet{ font-size:0.78rem; color:var(--black); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; }
   .detail-head{ padding:14px 20px; border-bottom:1px solid var(--line); flex-shrink:0; display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; }
   .dh-title{ font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); }
@@ -205,6 +206,9 @@
             (s.sent_to_sales ? '<span class="badge sales"><i class="fas fa-paper-plane"></i> sales</span>' : '') +
           '</span>' +
         '</div>' +
+        ((s.client_name || s.client_email)
+          ? '<div class="si-contact"><i class="fas fa-user"></i> ' + esc([s.client_name, s.client_email].filter(Boolean).join(' · ')) + '</div>'
+          : '') +
         '<div class="si-snippet">' + esc(firstUserMsg(s)) + '</div>';
       item.addEventListener('click', () => { activeId = s.session_id; renderList(); renderDetail(s); });
       sessionList.appendChild(item);
@@ -215,9 +219,17 @@
     const msgs = Array.isArray(s.messages) ? s.messages : [];
     const permalink = location.origin + '/cms/conversations/' + encodeURIComponent(s.session_id);
 
+    // Lead contact details captured before the sauna chat (shown when present).
+    const contactBits = [];
+    if(s.client_name) contactBits.push('<span class="meta"><i class="fas fa-user"></i> <b>' + esc(s.client_name) + '</b></span>');
+    if(s.client_email) contactBits.push('<span class="meta"><i class="fas fa-envelope"></i> <b>' + esc(s.client_email) + '</b></span>');
+    if(s.client_phone) contactBits.push('<span class="meta"><i class="fas fa-phone"></i> <b>' + esc(s.client_phone) + '</b></span>');
+    if(s.client_location) contactBits.push('<span class="meta"><i class="fas fa-location-dot"></i> <b>' + esc(s.client_location) + '</b></span>');
+
     detailHead.style.display = 'flex';
     detailHead.innerHTML =
       '<span class="dh-title"><i class="fas fa-comment-dots"></i> Session</span>' +
+      contactBits.join('') +
       '<span class="meta">Started: <b>' + esc(fmt(s.created_at)) + '</b></span>' +
       '<span class="meta">Updated: <b>' + esc(fmt(s.updated_at)) + '</b></span>' +
       '<span class="meta">Messages: <b>' + msgs.length + '</b></span>' +

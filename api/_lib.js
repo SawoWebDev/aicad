@@ -156,10 +156,25 @@ async function fetchImageBytes(imageUrl) {
   } catch { return null; }
 }
 
-async function buildPdfFromPng(pngBytes) {
+// Sniff the real image type from the leading bytes so attachments/PDF embedding
+// use the correct codec regardless of what the model labelled the data URL.
+function sniffImageType(bytes) {
+  if (bytes && bytes.length > 3 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return { ext: 'png', mime: 'image/png' };
+  }
+  if (bytes && bytes.length > 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    return { ext: 'jpg', mime: 'image/jpeg' };
+  }
+  return { ext: 'png', mime: 'image/png' }; // default; embedPng will surface a real failure
+}
+
+async function buildPdfFromImage(imgBytes) {
   try {
     const pdf = await PDFDocument.create();
-    const img = await pdf.embedPng(pngBytes);
+    const { mime } = sniffImageType(imgBytes);
+    const img = mime === 'image/jpeg'
+      ? await pdf.embedJpg(imgBytes)
+      : await pdf.embedPng(imgBytes);
     const { width, height } = img.scale(1);
     const page = pdf.addPage([width, height]);
     page.drawImage(img, { x: 0, y: 0, width, height });
@@ -167,7 +182,22 @@ async function buildPdfFromPng(pngBytes) {
   } catch { return null; }
 }
 
-function buildSalesEmailHtml(permalink, hasCidImage) {
+function buildSalesEmailHtml(permalink, hasCidImage, contact) {
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const c = contact || {};
+  const rows = [
+    ['Name', c.client_name],
+    ['Email', c.client_email],
+    ['Phone', c.client_phone],
+    ['Location', c.client_location],
+  ].filter(([, v]) => v && String(v).trim());
+  const contactBlock = rows.length
+    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;border:1px solid #e5ddd5;border-radius:8px;border-collapse:separate;overflow:hidden;">
+        <tr><td colspan="2" style="background:#f7f2ec;padding:10px 16px;font-size:11px;font-weight:bold;color:#AF8564;letter-spacing:1.5px;text-transform:uppercase;">Client contact</td></tr>
+        ${rows.map(([k, v]) => `<tr><td style="padding:9px 16px;font-size:13px;color:#777;width:90px;border-top:1px solid #efe7dd;">${k}</td><td style="padding:9px 16px;font-size:13px;color:#222;font-weight:bold;border-top:1px solid #efe7dd;">${esc(v)}</td></tr>`).join('')}
+       </table>`
+    : '';
   const imgBlock = hasCidImage
     ? `<div style="text-align:center;margin:24px 0;">
         <img src="cid:drawing" alt="Generated sauna drawing" style="max-width:100%;border-radius:10px;border:1px solid #e5ddd5;box-shadow:0 8px 24px rgba(139,94,60,0.15);" />
@@ -187,6 +217,7 @@ function buildSalesEmailHtml(permalink, hasCidImage) {
 </td></tr>
 
 <tr><td style="background:#fff;padding:32px 36px;">
+  ${contactBlock}
   ${imgBlock}
   <p style="font-size:14px;color:#333;line-height:1.6;margin:0 0 24px;">
     A new sauna design has been generated and is ready for your review. Click the button below to view the full conversation, transcript, and drawing in the CMS.
@@ -195,7 +226,7 @@ function buildSalesEmailHtml(permalink, hasCidImage) {
     <a href="${permalink}" style="display:inline-block;background:#AF8564;color:#fff;font-size:14px;font-weight:bold;text-decoration:none;padding:14px 32px;border-radius:8px;letter-spacing:0.5px;">View Full Conversation</a>
   </div>
   <p style="font-size:12px;color:#999;text-align:center;margin:20px 0 0;">
-    ${hasCidImage ? 'The drawing is also attached as PNG and PDF files.' : 'No drawing was generated in this session.'}
+    ${hasCidImage ? 'The drawing is also attached as image and PDF files for download.' : 'No drawing was generated in this session.'}
   </p>
 </td></tr>
 
@@ -226,29 +257,43 @@ export async function notifySales(sessionId) {
   }
 
   let imageBytes = null;
+  let conv = null;
   try {
-    const { data: conv } = await svc
+    const { data } = await svc
       .from('cad_conversations')
-      .select('image_url')
+      .select('image_url, client_name, client_email, client_phone, client_location')
       .eq('session_id', sessionId)
       .maybeSingle();
+    conv = data;
     imageBytes = await fetchImageBytes(conv?.image_url);
   } catch (e) {
     console.error('[notifySales] image fetch failed:', e?.message || e);
   }
 
   const hasImage = !!imageBytes;
-  const html = buildSalesEmailHtml(permalink, hasImage);
+  const html = buildSalesEmailHtml(permalink, hasImage, conv);
   const attachments = [];
 
   if (imageBytes) {
+    const { ext, mime } = sniffImageType(imageBytes);
+    const imgB64 = imageBytes.toString('base64');
+
+    // Inline copy for the email body (cid:drawing). Many clients (e.g. Outlook)
+    // block embedded images by default, so this alone is not enough.
     attachments.push({
-      filename: 'sawo-drawing.png',
-      content_base64: imageBytes.toString('base64'),
-      mime: 'image/png',
+      filename: `drawing-inline.${ext}`,
+      content_base64: imgB64,
+      mime,
       cid: 'drawing',
     });
-    const pdfBytes = await buildPdfFromPng(imageBytes);
+    // Real downloadable image attachment — always present even when the inline
+    // copy is blocked. This is the file the previous version was missing.
+    attachments.push({
+      filename: `sawo-drawing.${ext}`,
+      content_base64: imgB64,
+      mime,
+    });
+    const pdfBytes = await buildPdfFromImage(imageBytes);
     if (pdfBytes) {
       attachments.push({
         filename: 'sawo-drawing.pdf',
