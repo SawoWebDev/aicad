@@ -590,9 +590,12 @@ Conversation rules:
 - Do NOT ask about sauna sizes, measurements, doors, benches, or accessories yet — that happens after intake. If the client brings up sauna details, acknowledge briefly and steer back to collecting their contact info first.
 - Write in plain text only. No markdown, no asterisks, no bold. Never use em dashes or en dashes; use a normal hyphen, a comma, or a period instead.
 
-Only when you have a valid name, a valid email, and a valid phone number (country may be empty), finish your reply with a short friendly note that you have their details and will move on to the sauna, then put this EXACT line as the very last line, on its own, with nothing after it:
+Only when you have a valid name, a valid email, and a valid phone number (country may be empty), do all of the following in one single final reply, in this order:
+1. Briefly and warmly confirm that you have their details.
+2. Immediately ask your FIRST sauna question in the same message: ask for the overall outer dimensions of the sauna room (its width, depth, and height in millimetres).
+3. As the very last line, on its own, with nothing after it, put this EXACT tag:
 [LEAD_CAPTURED] {"name":"<name>","email":"<email>","phone":"<phone>","location":"<country or empty string>"}
-Do not output that tag until every required field is genuinely collected and valid.`;
+Do not output that tag until every required field is genuinely collected and valid. Do not say goodbye or imply the conversation is finished - you are transitioning straight into the sauna design questions.`;
 
   const TXTBLOCK_SYSTEM_PROMPT = `You produce a structured plaintext CAD blueprint dataset for a sauna unit, strictly following the exact section structure, headers, table layout, and field labels of the reference template below. This template is only a pattern — every measurement, dimension, door type, heater spec, wall code, and remark must be replaced with values gathered from the conversation with the client. Do not invent values that contradict what the client stated; if something wasn't specified, make a reasonable default consistent with the rest of the drawing and keep the same structural format. Accessory-related requests must appear only in the REMARKS section. Door type (single door or double door) must be reflected in the ENTRY/DOOR fields. Always end the output with the exact line: "Generate the complete technical CAD drawing canvas image now."
 
@@ -1034,9 +1037,10 @@ ${REFERENCE_TEMPLATE}`;
       const { visible, captured } = parseLeadTag(reply);
       const done = leadIsValid(captured);
 
-      // Show the spoken part (never the raw tag); record the full reply.
+      // Show the spoken part (never the raw tag); record it tag-stripped so the
+      // captured JSON never leaks into the transcript or the sauna model context.
       if(visible) addMsg('bot', visible, { ai: true, model: friendlyModel(model) });
-      history.push({ role: 'assistant', content: reply });
+      if(visible) history.push({ role: 'assistant', content: visible });
 
       if(done){
         lead.name = String(captured.name).trim();
@@ -1044,23 +1048,27 @@ ${REFERENCE_TEMPLATE}`;
         lead.phone = String(captured.phone).trim();
         lead.location = String(captured.location || '').trim();
         leadStage = 'done';
-        logSession();
-        // Hand off to the sauna assistant for the first design question.
-        busy = false; sendBtn.disabled = false;
-        await runAssistant();
-        return;
+        // Safety net: the intake reply is meant to ask the first sauna question
+        // before its tag. If it emitted only the tag (no spoken text), make sure
+        // the client is still prompted so the handoff never stalls silently.
+        if(!visible){
+          const opener = 'Thanks, I have your details. Now, what are the overall outer dimensions of the sauna room - width, depth, and height in millimetres?';
+          addMsg('bot', opener, { ai: true, model: friendlyModel(model) });
+          history.push({ role: 'assistant', content: opener });
+        }
       }
       logSession();
+      // No follow-up model call here: the intake's final reply already asks the
+      // first sauna question, so we wait for the client's answer. From here every
+      // turn goes through runAssistant, with the history always ending on a user
+      // message (valid role alternation) — which avoids the empty-reply error.
     } catch(err){
       typingEl.remove();
       addSysMsg('Error: ' + (err.message || String(err)));
     } finally {
-      // runAssistant() manages busy itself once we've handed off.
-      if(leadStage !== 'done'){
-        busy = false;
-        sendBtn.disabled = false;
-        chatInput.focus();
-      }
+      busy = false;
+      sendBtn.disabled = false;
+      chatInput.focus();
     }
   }
 
