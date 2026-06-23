@@ -97,6 +97,10 @@
       <p>Technical sauna drawing synthesis</p>
     </div>
     <div class="actions">
+      <div class="log-status" id="modelStatus" title="AI model currently in use" style="display:none;">
+        <i class="fas fa-microchip" style="font-size:0.8rem;"></i>
+        <span id="modelStatusText"></span>
+      </div>
       <div class="log-status connecting" id="logStatus" title="Supabase conversation logging">
         <span class="dot"></span>
         <span id="logStatusText">Log: connecting…</span>
@@ -128,6 +132,18 @@
     } catch(e){ setLogStatus('error', 'Log: offline'); }
   }
   checkLogStatus();
+
+  // Active-model pill — the embedded generator (conversation-wp.html) posts up
+  // which AI model is doing the current phase (gathering / finalizing /
+  // rendering). Shown here in the page header, not inside the chat widget.
+  const modelStatusEl = document.getElementById('modelStatus');
+  const modelStatusText = document.getElementById('modelStatusText');
+  window.addEventListener('message', function(e){
+    const d = e.data;
+    if(!d || d.type !== 'sawocad-model') return;
+    modelStatusEl.style.display = '';
+    modelStatusText.textContent = 'AI: ' + d.model + (d.phaseText ? ' · ' + d.phaseText : '');
+  });
 })();
 </script>
 

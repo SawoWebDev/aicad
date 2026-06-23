@@ -12,7 +12,8 @@ import { serviceClient, requireRole, readJsonBody, sendMailViaRelay, APP_URL } f
 const SECRET_FIELDS = ['openrouter_api_key', 'mail_smtp_pass', 'mail_relay_secret'];
 const GET_MASK_FIELDS = ['mail_smtp_pass', 'mail_relay_secret'];
 const SETTING_FIELDS = [
-  'openrouter_api_key', 'chat_model', 'image_model', 'image_size', 'image_aspect_ratio',
+  'openrouter_api_key', 'pipeline_mode', 'chat_model', 'convo_model', 'image_model',
+  'image_size', 'image_aspect_ratio',
   'sales_notification_email', 'mail_smtp_host', 'mail_smtp_port', 'mail_smtp_user',
   'mail_smtp_pass', 'mail_from_address', 'mail_relay_url', 'mail_relay_secret',
 ];

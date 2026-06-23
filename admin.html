@@ -90,6 +90,70 @@
   .dd-menu button.danger{ color:#C9302C; } .dd-menu button.danger i{ color:#C9302C; }
   .hidden{ display:none; }
   .gate-msg{ text-align:center; color:#C9302C; font-weight:600; padding:40px; }
+  /* ── Pipeline-mode sliding switch ── */
+  .mode-switch{
+    position:relative; display:grid; grid-template-columns:1fr 1fr; gap:0;
+    background:#f1e9e0; border:1px solid var(--line); border-radius:13px;
+    padding:5px; margin-top:4px; user-select:none;
+  }
+  .mode-thumb{
+    position:absolute; top:5px; bottom:5px; left:5px; width:calc(50% - 5px);
+    background:#fff; border-radius:9px;
+    box-shadow:0 6px 16px rgba(139,94,60,0.18), 0 1px 0 rgba(255,255,255,0.9) inset;
+    transition:transform 0.34s cubic-bezier(0.34,1.56,0.64,1); z-index:0;
+  }
+  .mode-switch[data-mode="2"] .mode-thumb{ transform:translateX(100%); }
+  .mode-opt{
+    position:relative; z-index:1; display:flex; align-items:center; gap:11px;
+    background:transparent; border:none; cursor:pointer; text-align:left;
+    padding:12px 14px; border-radius:9px; font-family:'Montserrat',sans-serif;
+    color:var(--text-dim); transition:color 0.25s;
+  }
+  .mode-opt .mode-ico{
+    width:34px; height:34px; flex-shrink:0; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; font-size:0.95rem;
+    background:#eaded1; color:var(--brown-mid); transition:all 0.3s;
+  }
+  .mode-opt .mode-txt{ display:flex; flex-direction:column; line-height:1.25; overflow:hidden; }
+  .mode-name{ font-size:0.8rem; font-weight:700; color:var(--brown-deep); white-space:nowrap; }
+  .mode-sub{ font-size:0.68rem; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mode-save{ font-size:0.56rem; font-weight:800; text-transform:uppercase; letter-spacing:0.06em; color:#4A9D4A; background:rgba(74,157,74,0.15); padding:1px 6px; border-radius:8px; margin-left:5px; vertical-align:middle; }
+  .mode-switch[data-mode="1"] .mode-opt[data-mode="1"] .mode-ico,
+  .mode-switch[data-mode="2"] .mode-opt[data-mode="2"] .mode-ico{
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
+    box-shadow:0 5px 13px rgba(166,120,83,0.4);
+  }
+  .mode-opt:hover .mode-name{ color:var(--brown-mid); }
+  /* Animated 3-step flow shown when Mode 2 is active */
+  .mode-flow{ overflow:hidden; max-height:0; opacity:0; transition:max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease; }
+  .mode-flow.show{ max-height:80px; opacity:1; margin-top:12px; }
+  .mode-flow .mf-track{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .mf-step{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 13px; border-radius:10px;
+    background:#fbf8f4; border:1px solid var(--line); font-size:0.72rem; font-weight:600; color:var(--brown-deep);
+    animation:mf-pop 0.4s backwards;
+  }
+  .mf-step i{ font-size:0.78rem; }
+  .mf-step.s1 i{ color:#4A9D4A; } .mf-step.s2 i{ color:var(--brown-mid); } .mf-step.s3 i{ color:#C99A2C; }
+  .mf-step .mf-tag{ font-size:0.56rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
+  .mf-step:nth-child(1){ animation-delay:0.02s; } .mf-step:nth-child(3){ animation-delay:0.1s; } .mf-step:nth-child(5){ animation-delay:0.18s; }
+  .mf-arrow{ color:var(--text-dim); font-size:0.7rem; }
+  @keyframes mf-pop{ from{ opacity:0; transform:translateY(6px) scale(0.96); } to{ opacity:1; transform:none; } }
+
+  /* ── Conversation-model cost/quality guide ── */
+  .model-guide{ margin-top:12px; border:1px solid var(--line); border-radius:11px; background:#fbf8f4; padding:14px 16px; }
+  .model-guide .mg-title{ font-size:0.76rem; font-weight:700; color:var(--brown-deep); display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .model-guide .mg-title i{ color:var(--brown-mid); }
+  .mg-table{ width:100%; border-collapse:collapse; font-size:0.76rem; margin:0; }
+  .mg-table th{ font-size:0.62rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); text-align:left; padding:6px 9px; border-bottom:1px solid var(--line); }
+  .mg-table td{ padding:8px 9px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.45; color:var(--black); }
+  .mg-table tr:last-child td{ border-bottom:none; }
+  .mg-rec{ font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#4A9D4A; background:rgba(74,157,74,0.14); padding:1px 7px; border-radius:9px; margin-left:5px; }
+  .mg-cost{ font-weight:700; letter-spacing:1px; }
+  .mg-cost.mg-1{ color:#4A9D4A; } .mg-cost.mg-2{ color:#C99A2C; } .mg-cost.mg-3{ color:#C9302C; }
+  .mg-good{ color:#4A9D4A; font-weight:600; } .mg-ok{ color:#C99A2C; font-weight:600; }
+  .mg-foot{ font-size:0.72rem; color:var(--text-dim); line-height:1.5; margin-top:11px; display:flex; gap:8px; }
+  .mg-foot i{ color:var(--brown-mid); margin-top:2px; }
 </style>
 </head>
 <body>
@@ -162,7 +226,71 @@
           </div>
           <div class="hint" id="keyHint">Used for chat + image generation.</div>
 
-          <label class="field-label">Chat model</label>
+          <label class="field-label">Pipeline mode</label>
+          <div class="mode-switch" id="modeSwitch" data-mode="1" role="tablist" aria-label="Pipeline mode">
+            <div class="mode-thumb" aria-hidden="true"></div>
+            <button type="button" class="mode-opt" data-mode="1" role="tab">
+              <span class="mode-ico"><i class="fas fa-microchip"></i></span>
+              <span class="mode-txt">
+                <span class="mode-name">Mode 1 · Single model</span>
+                <span class="mode-sub">One chat model does everything</span>
+              </span>
+            </button>
+            <button type="button" class="mode-opt" data-mode="2" role="tab">
+              <span class="mode-ico"><i class="fas fa-layer-group"></i></span>
+              <span class="mode-txt">
+                <span class="mode-name">Mode 2 · 3-model pipeline <span class="mode-save">save $$</span></span>
+                <span class="mode-sub">Cheap chat → Opus finalize → image</span>
+              </span>
+            </button>
+          </div>
+          <div class="mode-flow" id="modeFlow"></div>
+          <div class="hint">Mode 2 uses the cheap <b>Conversation model</b> for the back-and-forth requirements chat, then switches to the <b>Chat model</b> (keep this on Opus) to finalize the dataset and image prompt, then renders with the <b>Image model</b>. This avoids spending Opus tokens on basic Q&amp;A.</div>
+
+          <div id="convoModelWrap">
+            <label class="field-label">Conversation model <span style="color:var(--text-dim);font-weight:600;text-transform:none;letter-spacing:0;">(Mode 2 only — the cheap info-gathering model)</span></label>
+            <select id="sConvoModel">
+              <option value="anthropic/claude-haiku-4.5">Claude Haiku 4.5 — anthropic/claude-haiku-4.5 (Fast · cheap · best at following the format rules · $)</option>
+              <option value="google/gemini-2.5-flash">Gemini 2.5 Flash — google/gemini-2.5-flash (Fast · very cheap · $)</option>
+              <option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6 — anthropic/claude-sonnet-4.6 (Strong · balanced · $$)</option>
+              <option value="openai/gpt-5.4">GPT-5.4 — openai/gpt-5.4 (Advanced · balanced · $$)</option>
+            </select>
+            <div class="model-guide" id="convoGuide">
+              <div class="mg-title"><i class="fas fa-circle-info"></i> Which conversation model should I pick?</div>
+              <table class="mg-table">
+                <thead><tr><th>Model</th><th>Cost</th><th>Follows format rules</th><th>Best for</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><b>Claude Haiku 4.5</b> <span class="mg-rec">recommended</span></td>
+                    <td><span class="mg-cost mg-1">$</span></td>
+                    <td><span class="mg-good">Excellent</span></td>
+                    <td>Default. Same family as Opus, so it reliably obeys the plain-text / no-em-dash / trigger-tag rules. Big savings, near-zero risk.</td>
+                  </tr>
+                  <tr>
+                    <td><b>Gemini 2.5 Flash</b></td>
+                    <td><span class="mg-cost mg-1">$</span></td>
+                    <td><span class="mg-ok">Good</span></td>
+                    <td>Cheapest. Occasionally slips on formatting (stray asterisks / dashes) — the widget strips most of that anyway. Pick for max savings.</td>
+                  </tr>
+                  <tr>
+                    <td><b>Claude Sonnet 4.6</b></td>
+                    <td><span class="mg-cost mg-2">$$</span></td>
+                    <td><span class="mg-good">Excellent</span></td>
+                    <td>Smarter small-talk and edge-case handling than Haiku, still well under Opus. Use if Haiku ever feels too literal.</td>
+                  </tr>
+                  <tr>
+                    <td><b>GPT-5.4</b></td>
+                    <td><span class="mg-cost mg-2">$$</span></td>
+                    <td><span class="mg-ok">Good</span></td>
+                    <td>Strong reasoning; only pick if you specifically prefer OpenAI for the chat.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="mg-foot"><i class="fas fa-lightbulb"></i> The conversation model only handles Q&amp;A. The <b>Chat model</b> below (keep on <b>Opus</b>) still does the precise finalize + image-prompt step, so drawing quality is unaffected by this choice.</div>
+            </div>
+          </div>
+
+          <label class="field-label" id="chatModelLabel">Chat model</label>
           <select id="sChatModel">
             <option value="anthropic/claude-opus-4.6">Claude Opus 4.6 — anthropic/claude-opus-4.6 (Most capable · reliable · $$$)</option>
             <option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6 — anthropic/claude-sonnet-4.6 (Strong · balanced · $$)</option>
@@ -385,10 +513,54 @@
     dirty = false; dirtyBadge.classList.add('hidden');
   }
   // Track changes on all settings fields
-  ['sKey','sChatModel','sImageModel','sImageSize','sImageRatio','sSalesEmail'].forEach(function(id){
+  ['sKey','sConvoModel','sChatModel','sImageModel','sImageSize','sImageRatio','sSalesEmail'].forEach(function(id){
     var el = document.getElementById(id);
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
+  });
+
+  // ── Pipeline-mode sliding switch ──
+  // The conversation model only applies in Mode 2, and the chat model is the
+  // "finalize" model there. The switch drives the rest of the form.
+  const modeSwitch = document.getElementById('modeSwitch');
+  const modeFlow = document.getElementById('modeFlow');
+  const convoModelWrap = document.getElementById('convoModelWrap');
+  const chatModelLabel = document.getElementById('chatModelLabel');
+  function getMode(){ return modeSwitch.getAttribute('data-mode') === '2' ? 2 : 1; }
+  function setMode(m){ modeSwitch.setAttribute('data-mode', String(m === 2 ? 2 : 1)); }
+  function renderModeFlow(){
+    const cv = document.getElementById('sConvoModel');
+    const ct = document.getElementById('sChatModel');
+    const im = document.getElementById('sImageModel');
+    const name = (sel) => sel.options[sel.selectedIndex].text.split(' — ')[0];
+    modeFlow.innerHTML =
+      '<div class="mf-track">' +
+        '<span class="mf-step s1"><i class="fas fa-comments"></i> ' + name(cv) + ' <span class="mf-tag">gather</span></span>' +
+        '<i class="fas fa-arrow-right mf-arrow"></i>' +
+        '<span class="mf-step s2"><i class="fas fa-wand-magic-sparkles"></i> ' + name(ct) + ' <span class="mf-tag">finalize</span></span>' +
+        '<i class="fas fa-arrow-right mf-arrow"></i>' +
+        '<span class="mf-step s3"><i class="fas fa-image"></i> ' + name(im) + ' <span class="mf-tag">render</span></span>' +
+      '</div>';
+  }
+  function syncPipelineUI(){
+    const mode2 = getMode() === 2;
+    convoModelWrap.style.display = mode2 ? '' : 'none';
+    chatModelLabel.textContent = mode2 ? 'Chat model (finalize / image-prompt — keep on Opus)' : 'Chat model';
+    if(mode2){ renderModeFlow(); modeFlow.classList.add('show'); }
+    else { modeFlow.classList.remove('show'); }
+  }
+  modeSwitch.querySelectorAll('.mode-opt').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const m = btn.getAttribute('data-mode') === '2' ? 2 : 1;
+      if(m === getMode()) return;
+      setMode(m);
+      syncPipelineUI();
+      markDirty();
+    });
+  });
+  // Keep the Mode-2 flow preview in sync when the chosen models change.
+  ['sConvoModel','sChatModel','sImageModel'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(){ if(getMode() === 2) renderModeFlow(); });
   });
   window.addEventListener('beforeunload', function(e){
     if(dirty){ e.preventDefault(); e.returnValue = ''; }
@@ -397,8 +569,11 @@
   async function loadSettings(){
     try{
       const { settings } = await CMS.get('/api/admin?resource=settings');
+      setMode(Number(settings.pipeline_mode) || 1);
+      document.getElementById('sConvoModel').value = settings.convo_model || 'anthropic/claude-haiku-4.5';
       document.getElementById('sChatModel').value = settings.chat_model || 'anthropic/claude-opus-4.6';
       document.getElementById('sImageModel').value = settings.image_model || 'google/gemini-3-pro-image-preview';
+      syncPipelineUI();
       document.getElementById('sImageSize').value = settings.image_size || '2K';
       document.getElementById('sImageRatio').value = settings.image_aspect_ratio || '16:9';
       document.getElementById('sSalesEmail').value = settings.sales_notification_email || 'rafael.boroy@sawo.com';
@@ -428,6 +603,8 @@
     try{
       await CMS.send('PUT', '/api/admin?resource=settings', {
         openrouter_api_key: keyChanged ? currentKey : '',
+        pipeline_mode: getMode(),
+        convo_model: document.getElementById('sConvoModel').value,
         chat_model: document.getElementById('sChatModel').value,
         image_model: document.getElementById('sImageModel').value,
         image_size: document.getElementById('sImageSize').value,

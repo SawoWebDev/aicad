@@ -14,13 +14,41 @@ async function loadSettings() {
   const svc = serviceClient();
   const { data, error } = await svc
     .from('settings')
-    .select('openrouter_api_key, chat_model, image_model, image_size, image_aspect_ratio')
+    .select('openrouter_api_key, chat_model, convo_model, image_model, image_size, image_aspect_ratio, pipeline_mode')
     .eq('id', 1)
     .maybeSingle();
   if (error) throw new Error('Could not load settings: ' + error.message);
   if (!data) throw new Error('Settings row missing — run the migration / seed settings.');
   if (!data.openrouter_api_key) throw new Error('No OpenRouter API key configured in Settings.');
   return data;
+}
+
+// Public (non-secret) model config so the generator UI can show which model is
+// active for the current phase. Never returns the API key.
+async function loadPublicConfig() {
+  const svc = serviceClient();
+  const { data, error } = await svc
+    .from('settings')
+    .select('chat_model, convo_model, image_model, pipeline_mode')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error) throw new Error('Could not load settings: ' + error.message);
+  return data || {};
+}
+
+// Which model serves a given chat phase, honoring the pipeline mode.
+//   Mode 1: chat_model handles every phase.
+//   Mode 2: convo_model handles 'converse'; chat_model finalizes ('analyze').
+function modelForPhase(settings, phase) {
+  const mode = Number(settings.pipeline_mode) || 1;
+  const convo = (settings.convo_model || '').trim();
+  const chat = (settings.chat_model || '').trim();
+  // Mode 2: the cheap convo_model handles the gathering chat ('converse'); the
+  // capable chat_model finalizes the dataset/image prompt ('analyze').
+  if (mode === 2 && phase === 'converse' && convo) {
+    return convo;
+  }
+  return chat;
 }
 
 // Ported verbatim from conversation.html extractImageUrl().
@@ -50,11 +78,25 @@ function extractImageUrl(data) {
 export default async function handler(req, res) {
   applyCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const type = (req.query.type || '').toString();
+  // 'config' is a read-only GET; chat/image are POST.
+  if (type !== 'config' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
+    // ── config (GET): non-secret model info for the UI's "active model" pill ──
+    if (type === 'config') {
+      const cfg = await loadPublicConfig();
+      return res.status(200).json({
+        pipeline_mode: Number(cfg.pipeline_mode) || 1,
+        chat_model: cfg.chat_model || null,
+        convo_model: cfg.convo_model || null,
+        image_model: cfg.image_model || null,
+      });
+    }
+
     const settings = await loadSettings();
     const body = await readJsonBody(req);
     const headers = {
@@ -63,13 +105,14 @@ export default async function handler(req, res) {
     };
 
     if (type === 'chat') {
-      const { messages, systemPrompt } = body;
+      const { messages, systemPrompt, phase } = body;
       if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages[] required' });
+      const model = modelForPhase(settings, phase === 'analyze' ? 'analyze' : 'converse');
       const upstream = await fetch(OPENROUTER_URL, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          model: settings.chat_model,
+          model,
           messages: [{ role: 'system', content: systemPrompt || '' }, ...messages],
         }),
       });
@@ -78,7 +121,9 @@ export default async function handler(req, res) {
       if (!upstream.ok) return res.status(upstream.status).json({ error: data?.error?.message || ('HTTP ' + upstream.status) });
       const content = data.choices?.[0]?.message?.content;
       if (!content) return res.status(502).json({ error: 'No reply content returned.' });
-      return res.status(200).json({ content: typeof content === 'string' ? content : JSON.stringify(content) });
+      // Report the model actually used so the UI can label the reply accurately
+      // (no dependence on a separately-fetched config that may not have loaded).
+      return res.status(200).json({ content: typeof content === 'string' ? content : JSON.stringify(content), model });
     }
 
     if (type === 'image') {

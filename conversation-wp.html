@@ -136,6 +136,23 @@
   #sawocad-app .sc-msg.bot .who{ color: var(--brown-mid); }
   #sawocad-app .sc-msg.user .who{ color: rgba(255,255,255,0.8); }
 
+  /* Per-reply AI provenance tag — CMS-only debug aid. Rendered inline after the
+     "ASSISTANT" label so staff can tell a real model reply (with its model name)
+     apart from a scripted/canned message. Hidden entirely on the WordPress paste
+     (only injected when running inside the CMS iframe). */
+  #sawocad-app .sc-msg .who .sc-ai-tag{
+    display: inline-block; margin-left: 8px; vertical-align: middle;
+    font-size: 0.56rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 1px 7px; border-radius: 10px; line-height: 1.6;
+  }
+  #sawocad-app .sc-msg .who .sc-ai-tag.ai{
+    background: linear-gradient(135deg, var(--brown-deep) 0%, var(--brown-mid) 100%);
+    color: #fff;
+  }
+  #sawocad-app .sc-msg .who .sc-ai-tag.scripted{
+    background: transparent; color: var(--text-dim); border: 1px solid var(--line);
+  }
+
   /* Typing indicator shown while the assistant is preparing a reply */
   #sawocad-app .sc-typing{ display: inline-flex; align-items: center; gap: 5px; padding: 3px 2px; }
   #sawocad-app .sc-typing span{
@@ -272,7 +289,7 @@
   <div class="sc-grid">
     <!-- conversation -->
     <div class="sc-col">
-      <div class="sc-col-head"><i class="fas fa-comments"></i> Requirements assistant</div>
+      <div class="sc-col-head"><i class="fas fa-comments"></i> Drawing Assistant</div>
       <div id="sc-chatThread"></div>
       <div class="sc-input-row">
         <textarea id="sc-chatInput" placeholder="Sauna for 5 persons."></textarea>
@@ -553,6 +570,30 @@ You do not produce the final dataset yourself in normal chat replies. Just gathe
 When you have gathered enough data AND the user explicitly confirms (says "go", "generate", "yes", "okay", "proceed", or any clear affirmation), end your reply with this exact tag on its own line:
 [READY_TO_GENERATE]`;
 
+  // Drives the contact-detail intake conversationally (replaces the old scripted
+  // step machine). The model acknowledges what the client said, asks for one
+  // field at a time, rejects junk answers, and emits the [LEAD_CAPTURED] tag
+  // with a JSON payload once it has a valid name, email, and phone.
+  const LEAD_SYSTEM_PROMPT = `You are a warm, concise intake assistant for a sauna manufacturer. Before any sauna design discussion can begin, you collect the client's contact details so the sales team can follow up.
+
+Collect these, asking for ONE item at a time and in this order:
+1. Full name
+2. Email address
+3. Phone number (ask for the country or area code too)
+4. Country (this one is optional)
+
+Conversation rules:
+- Always respond naturally to what the client just said before asking your next question. If they greet you, greet them back warmly. Never ignore their message.
+- Ask for only one piece of information per reply. Keep each reply to one or two short sentences.
+- If an answer is clearly not a real value for what you asked (for example "no", "none", "no name", a refusal, or obvious nonsense for a name; an email without a proper "@" and domain; a phone number that is too short or implausible), do not accept it. Briefly and politely say why you need it and ask again for that same item.
+- Country is optional: if the client declines, says "skip", or does not want to share it, accept that and treat the location as empty.
+- Do NOT ask about sauna sizes, measurements, doors, benches, or accessories yet — that happens after intake. If the client brings up sauna details, acknowledge briefly and steer back to collecting their contact info first.
+- Write in plain text only. No markdown, no asterisks, no bold. Never use em dashes or en dashes; use a normal hyphen, a comma, or a period instead.
+
+Only when you have a valid name, a valid email, and a valid phone number (country may be empty), finish your reply with a short friendly note that you have their details and will move on to the sauna, then put this EXACT line as the very last line, on its own, with nothing after it:
+[LEAD_CAPTURED] {"name":"<name>","email":"<email>","phone":"<phone>","location":"<country or empty string>"}
+Do not output that tag until every required field is genuinely collected and valid.`;
+
   const TXTBLOCK_SYSTEM_PROMPT = `You produce a structured plaintext CAD blueprint dataset for a sauna unit, strictly following the exact section structure, headers, table layout, and field labels of the reference template below. This template is only a pattern — every measurement, dimension, door type, heater spec, wall code, and remark must be replaced with values gathered from the conversation with the client. Do not invent values that contradict what the client stated; if something wasn't specified, make a reasonable default consistent with the rest of the drawing and keep the same structural format. Accessory-related requests must appear only in the REMARKS section. Door type (single door or double door) must be reflected in the ENTRY/DOOR fields. Always end the output with the exact line: "Generate the complete technical CAD drawing canvas image now."
 
 Output ONLY the final txt block, in plain text, no markdown code fences, no commentary before or after it.
@@ -574,8 +615,67 @@ ${REFERENCE_TEMPLATE}`;
   let currentImageUrl = null;
   let busy = false;
 
+  // ── Active-model indicator ──────────────────────────────────────────────
+  // Shows which AI model is doing the work right now (gathering vs finalizing
+  // vs rendering). The model config is loaded from the server so the labels
+  // always match the admin Settings. The indicator is rendered in the page
+  // HEADER (not inside the chat): when embedded in the CMS it is posted up to
+  // the parent generator page; when pasted standalone in WordPress a slim
+  // header strip above the widget shows it.
+  let modelConfig = { pipeline_mode: 1, chat_model: null, convo_model: null, image_model: null };
+  const isEmbedded = (function(){ try { return window.self !== window.top; } catch(e){ return true; } })();
+
+  const MODEL_NAMES = {
+    'anthropic/claude-opus-4.6': 'Claude Opus 4.6',
+    'anthropic/claude-sonnet-4.6': 'Claude Sonnet 4.6',
+    'anthropic/claude-haiku-4.5': 'Claude Haiku 4.5',
+    'openai/gpt-5.4': 'GPT-5.4',
+    'google/gemini-3-pro-preview': 'Gemini 3 Pro',
+    'google/gemini-2.5-flash': 'Gemini 2.5 Flash',
+    'google/gemini-3-pro-image-preview': 'Nano Banana Pro',
+    'google/gemini-3.1-flash-image-preview': 'Nano Banana 2',
+    'google/gemini-2.5-flash-image': 'Nano Banana',
+  };
+  function friendlyModel(slug){
+    if(!slug) return 'AI model';
+    return MODEL_NAMES[slug] || slug.split('/').pop();
+  }
+  const PHASE_TEXT = {
+    converse: 'gathering requirements',
+    analyze: 'finalizing drawing data',
+    image: 'rendering drawing',
+  };
+  // Resolve which model serves a phase, mirroring the server's modelForPhase().
+  function modelForPhase(phase){
+    if(phase === 'image') return modelConfig.image_model;
+    if(Number(modelConfig.pipeline_mode) === 2 && phase === 'converse' && modelConfig.convo_model){
+      return modelConfig.convo_model;
+    }
+    return modelConfig.chat_model;
+  }
+
+  function setActiveModel(phase){
+    const slug = modelForPhase(phase);
+    const label = friendlyModel(slug);
+    const phaseText = PHASE_TEXT[phase] || '';
+    // CMS: hand the active model up to the outer page header (generator.html).
+    if(isEmbedded){
+      try{ window.parent.postMessage({ type: 'sawocad-model', phase: phase, model: label, phaseText: phaseText }, '*'); }catch(e){}
+    }
+  }
+
+  async function loadModelConfig(){
+    try{
+      const resp = await fetch(SAWO_API_BASE + '/api/openrouter?type=config');
+      if(resp.ok){ modelConfig = await resp.json(); }
+    }catch(e){ /* non-fatal: indicator just falls back to generic label */ }
+    setActiveModel('converse');
+  }
+
   // ── Lead capture (collected before the AI dives into sauna specs) ──
-  let leadStage = 'preference';  // preference → name → email → phone → location → done
+  // Two effective states: anything other than 'done' means intake is still in
+  // progress (AI-driven, see runLeadCapture); 'done' hands off to the sauna chat.
+  let leadStage = 'pending';
   const lead = { name:'', email:'', phone:'', location:'' };
   const isValidEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s).trim());
   const isValidPhone = (s) => {
@@ -634,13 +734,28 @@ ${REFERENCE_TEMPLATE}`;
     return h;
   }
 
-  function addMsg(role, text){
+  // Build the small AI-provenance tag for a bot message. Returns a DOM node, or
+  // null when it shouldn't render (not embedded in the CMS, or no meta given).
+  // Using textContent keeps the model name XSS-safe.
+  function buildAiTag(meta){
+    if(!isEmbedded || !meta) return null;
+    const tag = document.createElement('span');
+    tag.className = 'sc-ai-tag ' + (meta.ai ? 'ai' : 'scripted');
+    tag.textContent = meta.ai ? ('AI · ' + (meta.model || 'AI model')) : 'NOT AI';
+    return tag;
+  }
+
+  function addMsg(role, text, meta){
     const div = document.createElement('div');
     div.className = 'sc-msg ' + role;
     if(role === 'bot' || role === 'user'){
       const who = document.createElement('span');
       who.className = 'who';
       who.textContent = role === 'user' ? 'YOU' : 'ASSISTANT';
+      if(role === 'bot'){
+        const tag = buildAiTag(meta);
+        if(tag) who.appendChild(tag);
+      }
       div.appendChild(who);
       if(role === 'bot'){
         const body = document.createElement('span');
@@ -682,12 +797,14 @@ ${REFERENCE_TEMPLATE}`;
   }
   // Shows the typing dots, then renders the real message after a realistic
   // pause. Holds `busy`/disables send so the user can't race the scripted flow.
-  function botSay(text, after){
+  // Scripted bot messages flow through here; they are never AI, so they carry a
+  // { ai:false } tag in the CMS. `meta` defaults to the scripted tag.
+  function botSay(text, after, meta){
     busy = true; sendBtn.disabled = true;
     const t = addTyping();
     setTimeout(() => {
       t.remove();
-      addMsg('bot', text);
+      addMsg('bot', text, meta || { ai: false });
       busy = false; sendBtn.disabled = false; chatInput.focus();
       if(after) after();
     }, typingDelay(text));
@@ -699,11 +816,11 @@ ${REFERENCE_TEMPLATE}`;
     botSay("Hi! Let’s put together your sauna drawing. Can you share the room size (outer and or inner), bench heights, ceiling height, and if you want a single or double door? If you have any extras in mind like LEDs, controls, window style, stone inlay, etc., just include them as well and I’ll note them under remarks. Once I have the details and you confirm, I’ll generate the drawing automatically.");
   }
 
-  async function callChatModel(messages, systemPrompt){
+  async function callChatModel(messages, systemPrompt, phase){
     const resp = await fetch(SAWO_API_BASE + '/api/openrouter?type=chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, systemPrompt })
+      body: JSON.stringify({ messages, systemPrompt, phase: phase || 'converse' })
     });
     const raw = await resp.text();
     let data;
@@ -711,7 +828,9 @@ ${REFERENCE_TEMPLATE}`;
     catch(e){ throw new Error('Non-JSON response (HTTP ' + resp.status + ').'); }
     if(!resp.ok) throw new Error(data && data.error ? data.error : ('HTTP ' + resp.status));
     if(!data.content) throw new Error('No reply content returned.');
-    return data.content;
+    // `model` is the slug the server actually used; callers use it to label the
+    // reply. Falls back to the phase-based guess if an older API omits it.
+    return { content: data.content, model: data.model || modelForPhase(phase || 'converse') };
   }
 
   async function callImageModel(fullPrompt){
@@ -811,12 +930,14 @@ ${REFERENCE_TEMPLATE}`;
 
   async function runPipeline(){
     try{
+      setActiveModel('analyze');
       renderScan('Generating drawing dataset…');
       startProgress();
       const conversationDump = history.map(m => (m.role === 'user' ? 'CLIENT: ' : 'ASSISTANT: ') + m.content).join('\n\n');
-      const reply = await callChatModel(
+      const { content: reply } = await callChatModel(
         [{ role: 'user', content: 'Here is the full conversation so far:\n\n' + conversationDump + '\n\nProduce the final txt block now, following the reference template structure exactly, using the gathered sauna measurements/door type and placing any accessories under REMARKS.' }],
-        TXTBLOCK_SYSTEM_PROMPT
+        TXTBLOCK_SYSTEM_PROMPT,
+        'analyze'
       );
       let txtBlock = reply.trim();
       const trigger = 'Generate the complete technical CAD drawing canvas image now.';
@@ -824,6 +945,7 @@ ${REFERENCE_TEMPLATE}`;
       loggedTxtBlock = txtBlock;
       logSession();
 
+      setActiveModel('image');
       renderScan('Rendering technical drawing…');
       const fullPrompt = IMAGE_SYSTEM_PREFIX + txtBlock;
       const imageUrl = await callImageModel(fullPrompt);
@@ -831,6 +953,7 @@ ${REFERENCE_TEMPLATE}`;
       finishProgress();
       renderImage(imageUrl);
       addSysMsg('Drawing generated.');
+      setActiveModel('converse');
       loggedImageGenerated = true;
       loggedImageUrl = imageUrl;
       logSession();
@@ -848,8 +971,10 @@ ${REFERENCE_TEMPLATE}`;
     salesPrompted = true;
     const wrap = document.createElement('div');
     wrap.className = 'sc-msg bot';
+    // Scripted prompt — tag it NOT AI in the CMS only (matches other scripted bubbles).
+    const salesTag = isEmbedded ? '<span class="sc-ai-tag scripted">NOT AI</span>' : '';
     wrap.innerHTML =
-      '<span class="who">ASSISTANT</span>' +
+      '<span class="who">ASSISTANT' + salesTag + '</span>' +
       'Would you like to send this drawing to our sales team for a follow-up?' +
       '<div style="margin-top:10px; display:flex; gap:8px;">' +
         '<button type="button" id="sc-sales-yes" style="border:2px solid transparent;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:600;font-size:0.8rem;padding:7px 16px;background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%);color:#fff;">Yes, send to sales</button>' +
@@ -876,52 +1001,66 @@ ${REFERENCE_TEMPLATE}`;
     });
   }
 
-  // ── Lead capture ──
-  // Bot question helper: shows the question AND records it in history so the
-  // captured details appear in the saved transcript.
-  function askBot(text){
-    botSay(text, () => {
-      history.push({ role: 'assistant', content: text });
-      logSession();
-    });
+  // ── Lead capture (AI-driven) ──
+  // The model runs the whole name/email/phone/country intake conversationally:
+  // it acknowledges the client's message, asks for one field at a time, rejects
+  // junk answers, and signals completion with a [LEAD_CAPTURED] {json} line. We
+  // re-validate the email/phone here before accepting and handing off to the
+  // sauna assistant, so a stray tag can never push bad data through.
+  const LEAD_TAG = '[LEAD_CAPTURED]';
+  function parseLeadTag(reply){
+    const idx = reply.indexOf(LEAD_TAG);
+    if(idx === -1) return { visible: reply.trim(), captured: null };
+    const visible = reply.slice(0, idx).trim();
+    const m = reply.slice(idx + LEAD_TAG.length).match(/\{[\s\S]*\}/);
+    let captured = null;
+    if(m){ try{ captured = JSON.parse(m[0]); }catch(e){ captured = null; } }
+    return { visible, captured };
+  }
+  function leadIsValid(c){
+    return !!(c && String(c.name || '').trim() && isValidEmail(c.email) && isValidPhone(c.phone));
   }
 
-  // Sequential lead capture: Name → Email → Phone → Location (optional). Runs
-  // before the AI conversation; only when complete does the model take over.
-  function advanceLead(text){
-    const val = text.trim();
-    switch(leadStage){
-      case 'preference':
-        // The client's first message is their initial sauna preference; it is
-        // already in history. Now start collecting their contact details.
-        leadStage = 'name';
-        askBot("Great — I'd love to help with that. First, could I get your name?");
-        break;
-      case 'name':
-        if(!val){ askBot("Sorry, I didn't catch that — what's your name?"); break; }
-        lead.name = val;
-        leadStage = 'email';
-        askBot("Thanks, " + lead.name + "! What's the best email address to reach you at?");
-        break;
-      case 'email':
-        if(!isValidEmail(val)){ askBot("That doesn't look like a valid email address. Could you re-enter it? (e.g. name@company.com)"); break; }
-        lead.email = val;
-        leadStage = 'phone';
-        askBot("Got it. And your phone number?");
-        break;
-      case 'phone':
-        if(!isValidPhone(val)){ askBot("That phone number doesn't look quite right. Could you re-enter it, including the country/area code?"); break; }
-        lead.phone = val;
-        leadStage = 'location';
-        askBot("Thanks! Which country are you in? (optional — type your country, or \"skip\")");
-        break;
-      case 'location':
-        if(val && !/^skip$/i.test(val)) lead.location = val;
+  async function runLeadCapture(){
+    if(busy) return;
+    busy = true;
+    sendBtn.disabled = true;
+
+    setActiveModel('converse');
+    const typingEl = addTyping();
+    try{
+      const { content: reply, model } = await callChatModel(history, LEAD_SYSTEM_PROMPT, 'converse');
+      typingEl.remove();
+      const { visible, captured } = parseLeadTag(reply);
+      const done = leadIsValid(captured);
+
+      // Show the spoken part (never the raw tag); record the full reply.
+      if(visible) addMsg('bot', visible, { ai: true, model: friendlyModel(model) });
+      history.push({ role: 'assistant', content: reply });
+
+      if(done){
+        lead.name = String(captured.name).trim();
+        lead.email = String(captured.email).trim();
+        lead.phone = String(captured.phone).trim();
+        lead.location = String(captured.location || '').trim();
         leadStage = 'done';
         logSession();
-        // Hand off to the assistant to continue into the sauna specs.
-        runAssistant();
-        break;
+        // Hand off to the sauna assistant for the first design question.
+        busy = false; sendBtn.disabled = false;
+        await runAssistant();
+        return;
+      }
+      logSession();
+    } catch(err){
+      typingEl.remove();
+      addSysMsg('Error: ' + (err.message || String(err)));
+    } finally {
+      // runAssistant() manages busy itself once we've handed off.
+      if(leadStage !== 'done'){
+        busy = false;
+        sendBtn.disabled = false;
+        chatInput.focus();
+      }
     }
   }
 
@@ -931,14 +1070,15 @@ ${REFERENCE_TEMPLATE}`;
     busy = true;
     sendBtn.disabled = true;
 
+    setActiveModel('converse');
     const typingEl = addTyping();
     try{
-      const reply = await callChatModel(history, SYSTEM_PROMPT);
+      const { content: reply, model } = await callChatModel(history, SYSTEM_PROMPT, 'converse');
       typingEl.remove();
       const TRIGGER_TAG = '[READY_TO_GENERATE]';
       const triggered = reply.includes(TRIGGER_TAG);
       const cleaned = reply.replace(TRIGGER_TAG, '').trim();
-      if(cleaned) addMsg('bot', cleaned);
+      if(cleaned) addMsg('bot', cleaned, { ai: true, model: friendlyModel(model) });
       history.push({ role: 'assistant', content: reply });
       logSession();
       if(triggered){ await runPipeline(); }
@@ -961,10 +1101,10 @@ ${REFERENCE_TEMPLATE}`;
     history.push({ role: 'user', content: text });
     chatInput.value = '';
 
-    // Collect the client's contact details before the AI conversation begins.
+    // Collect the client's contact details before the sauna conversation begins.
     if(leadStage !== 'done'){
       logSession();
-      advanceLead(text);
+      await runLeadCapture();
       return;
     }
 
@@ -978,5 +1118,6 @@ ${REFERENCE_TEMPLATE}`;
 
   renderEmpty();
   initChat();
+  loadModelConfig();
 })();
 </script>
