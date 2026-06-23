@@ -111,6 +111,14 @@
   .msg .who{ display:block; font-size:0.62rem; font-weight:700; letter-spacing:0.12em; margin-bottom:4px; }
   .msg.user .who{ color:rgba(255,255,255,0.8); }
   .msg.assistant .who{ color:var(--brown-mid); }
+  /* Per-reply AI model tag — admin-only (rendered only when the signed-in user
+     is an admin). Mirrors the chat widget's inline "AI · <model>" badge. */
+  .msg .who .ai-tag{
+    display:inline-block; margin-left:8px; vertical-align:middle;
+    font-size:0.56rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    padding:1px 7px; border-radius:10px; line-height:1.6;
+    background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
+  }
   .txtblock-wrap{ max-width:820px; margin:22px auto 0; }
   .txtblock-toggle{ display:inline-flex; align-items:center; gap:8px; background:transparent; border:1px solid var(--line); border-radius:8px; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.74rem; letter-spacing:0.04em; text-transform:uppercase; padding:7px 13px; cursor:pointer; }
   .txtblock-toggle:hover{ border-color:var(--brown-mid); }
@@ -181,6 +189,26 @@
   document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeLightbox(); });
 
   const TRIGGER_TAG = '[READY_TO_GENERATE]';
+
+  // Admin-only: per-reply AI model tag in the transcript. Sales reps don't see
+  // it. Resolved from the session before the first render (see init below).
+  let isAdmin = false;
+  const MODEL_NAMES = {
+    'anthropic/claude-opus-4.6': 'Claude Opus 4.6',
+    'anthropic/claude-sonnet-4.6': 'Claude Sonnet 4.6',
+    'anthropic/claude-haiku-4.5': 'Claude Haiku 4.5',
+    'openai/gpt-5.4': 'GPT-5.4',
+    'google/gemini-3-pro-preview': 'Gemini 3 Pro',
+    'google/gemini-2.5-flash': 'Gemini 2.5 Flash',
+    'google/gemini-3-pro-image-preview': 'Nano Banana Pro',
+    'google/gemini-3.1-flash-image-preview': 'Nano Banana 2',
+    'google/gemini-2.5-flash-image': 'Nano Banana',
+  };
+  function friendlyModel(slug){
+    if(!slug) return '';
+    return MODEL_NAMES[slug] || String(slug).split('/').pop();
+  }
+
   // Deep-link target (set when opened via a conversation permalink).
   const deepId = new URLSearchParams(location.search).get('id');
 
@@ -301,7 +329,12 @@
         const role = m.role === 'user' ? 'user' : 'assistant';
         const who = role === 'user' ? 'CLIENT' : 'ASSISTANT';
         const content = String(m.content || '').replace(TRIGGER_TAG, '').trim();
-        html += '<div class="msg ' + role + '"><span class="who">' + who + '</span>' + esc(content) + '</div>';
+        // Admin-only AI model tag on assistant replies that recorded a model.
+        let tag = '';
+        if(isAdmin && role === 'assistant' && m.model){
+          tag = '<span class="ai-tag">AI · ' + esc(friendlyModel(m.model)) + '</span>';
+        }
+        html += '<div class="msg ' + role + '"><span class="who">' + who + tag + '</span>' + esc(content) + '</div>';
       });
     }
     html += '</div>';
@@ -408,7 +441,14 @@
 
   refreshBtn.addEventListener('click', loadSessions);
   search.addEventListener('input', renderList);
-  loadSessions();
+
+  // Resolve the signed-in role first so the admin-only model tags render on the
+  // initial transcript; then load the sessions. (Falls back to non-admin if the
+  // session check fails, so the tag never leaks to sales by accident.)
+  CMS.session()
+    .then(s => { isAdmin = !!(s && s.authenticated && s.role === 'admin'); })
+    .catch(() => { isAdmin = false; })
+    .finally(loadSessions);
 })();
 </script>
 </body>

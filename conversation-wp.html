@@ -1040,7 +1040,9 @@ ${REFERENCE_TEMPLATE}`;
       // Show the spoken part (never the raw tag); record it tag-stripped so the
       // captured JSON never leaks into the transcript or the sauna model context.
       if(visible) addMsg('bot', visible, { ai: true, model: friendlyModel(model) });
-      if(visible) history.push({ role: 'assistant', content: visible });
+      // Persist the model slug on the message so the admin log viewer can show
+      // which AI produced each reply. (Stripped before being sent to OpenRouter.)
+      if(visible) history.push({ role: 'assistant', content: visible, model: model });
 
       if(done){
         lead.name = String(captured.name).trim();
@@ -1054,7 +1056,7 @@ ${REFERENCE_TEMPLATE}`;
         if(!visible){
           const opener = 'Thanks, I have your details. Now, what are the overall outer dimensions of the sauna room - width, depth, and height in millimetres?';
           addMsg('bot', opener, { ai: true, model: friendlyModel(model) });
-          history.push({ role: 'assistant', content: opener });
+          history.push({ role: 'assistant', content: opener, model: model });
         }
       }
       logSession();
@@ -1087,7 +1089,7 @@ ${REFERENCE_TEMPLATE}`;
       const triggered = reply.includes(TRIGGER_TAG);
       const cleaned = reply.replace(TRIGGER_TAG, '').trim();
       if(cleaned) addMsg('bot', cleaned, { ai: true, model: friendlyModel(model) });
-      history.push({ role: 'assistant', content: reply });
+      history.push({ role: 'assistant', content: reply, model: model });
       logSession();
       if(triggered){ await runPipeline(); }
     } catch(err){

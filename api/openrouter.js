@@ -113,7 +113,13 @@ export default async function handler(req, res) {
         headers,
         body: JSON.stringify({
           model,
-          messages: [{ role: 'system', content: systemPrompt || '' }, ...messages],
+          // Only role/content go upstream. Messages may carry extra fields (e.g.
+          // a per-message `model` slug used by the admin log viewer) that must
+          // not be forwarded to OpenRouter.
+          messages: [
+            { role: 'system', content: systemPrompt || '' },
+            ...messages.map((m) => ({ role: m.role, content: m.content })),
+          ],
         }),
       });
       const raw = await upstream.text();
