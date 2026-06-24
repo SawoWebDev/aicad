@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — SAWO CAD CMS</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --brown:#AF8564; --brown-deep:#AF8564; --brown-mid:#AF8564; --brown-light:#AF8564;
@@ -13,13 +13,13 @@
   }
   *{ box-sizing:border-box; }
   html,body{ height:100%; }
-  body{ margin:0; background:var(--bg); color:var(--black); font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5; }
+  body{ margin:0; background:var(--bg); color:var(--black); font-family:'Montserrat',sans-serif; font-size:14px; line-height:1.5; font-weight:500; }
   #shell{ display:flex; flex-direction:column; height:100vh; }
   /* ── Shared page header (identical across all CMS frames) ── */
   .page-header{
     display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
     border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
-    
+  }
   .ph-icon{
     width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
     background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
@@ -51,7 +51,7 @@
   .section-label{ font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); margin:0 0 16px; display:flex; align-items:center; gap:9px; }
   .section-label i{ color:var(--brown-mid); }
   .field-label{ display:block; font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--brown-deep); margin:14px 0 6px; }
-  .hint{ font-size:0.74rem; color:var(--text-dim); margin-top:6px; line-height:1.5; }
+  .hint{ font-size:0.74rem; color:var(--text-dim); margin-top:6px; line-height:1.5; font-weight:500; }
   .hint.set{ color:#4A9D4A; font-weight:600; }
   input,select{
     width:100%; border:1.5px solid var(--line); border-radius:9px; background:#fff; color:var(--black);
@@ -77,7 +77,7 @@
   .msg-line.ok{ color:#4A9D4A; } .msg-line.err{ color:#C9302C; }
   table{ width:100%; border-collapse:collapse; margin-top:4px; font-size:0.82rem; }
   th,td{ text-align:left; padding:10px 10px; border-bottom:1px solid var(--line); }
-  th{ font-size:0.66rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
+  th{ font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
   .pill{ display:inline-flex; align-items:center; gap:5px; font-size:0.64rem; font-weight:700; text-transform:uppercase; padding:2px 9px; border-radius:10px; }
   .pill i{ font-size:0.66rem; }
   .pill.admin{ background:rgba(201,48,44,0.14); color:#C9302C; }
@@ -162,7 +162,7 @@
   .mg-foot i{ color:var(--brown-mid); margin-top:2px; }
 
   /* ── Analytics ── */
-  .an-wrap{ max-width:980px; margin:0 auto; }
+  .an-wrap{ max-width:none; margin:0 auto; }
   .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
   .stat-grid.stat-grid-2{ grid-template-columns:repeat(2,1fr); margin-bottom:20px; }
   @media (max-width:760px){ .stat-grid, .stat-grid.stat-grid-2{ grid-template-columns:repeat(2,1fr); } }
@@ -170,8 +170,8 @@
   .stat-card .sc-label{ font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
   .stat-card .sc-label i{ margin-right:5px; opacity:0.7; }
   .stat-card .sc-cost{ font-size:1.5rem; font-weight:700; color:var(--brown-deep); margin:8px 0 2px; letter-spacing:0.3px; }
-  .stat-card .sc-sub{ font-size:0.7rem; color:var(--text-dim); }
-  .an-panel{ max-width:980px; }
+  .stat-card .sc-sub{ font-size:0.7rem; color:var(--text-dim); font-weight:600; }
+  .an-panel{ max-width:none; }
   .chart{ display:flex; align-items:flex-end; gap:3px; height:160px; padding:8px 0 0; }
   .chart .bar-col{ flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; position:relative; }
   .chart .bar{ width:100%; max-width:22px; border-radius:4px 4px 0 0; background:linear-gradient(180deg,var(--brown-mid),var(--brown-deep)); min-height:2px; transition:opacity 0.2s; }
@@ -182,14 +182,14 @@
   }
   .chart .bar-col:hover .tip{ display:block; }
   .chart-axis{ display:flex; gap:3px; margin-top:6px; }
-  .chart-axis span{ flex:1; text-align:center; font-size:0.54rem; color:var(--text-dim); overflow:hidden; }
+  .chart-axis span{ flex:1; text-align:center; font-size:0.58rem; font-weight:600; color:var(--text-dim); overflow:hidden; }
   .an-table{ width:100%; border-collapse:collapse; font-size:0.8rem; }
   .an-table th{ font-size:0.6rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
   .an-table td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
   .an-table tr:last-child td{ border-bottom:none; }
   .an-table td.num, .an-table th.num{ text-align:right; font-variant-numeric:tabular-nums; }
   .an-table .mdl{ font-weight:600; color:var(--black); }
-  .an-empty{ color:var(--text-dim); font-size:0.8rem; padding:8px 2px; }
+  .an-empty{ color:var(--text-dim); font-size:0.8rem; font-weight:600; padding:8px 2px; }
   .an-warn{ background:rgba(201,48,44,0.08); border:1px solid rgba(201,48,44,0.25); color:#9c2c2a; border-radius:11px; padding:14px 16px; font-size:0.8rem; line-height:1.55; margin-bottom:20px; }
   .an-warn b{ color:#7d211f; }
   .an-warn code{ background:rgba(0,0,0,0.06); padding:1px 6px; border-radius:5px; font-size:0.74rem; }
@@ -211,15 +211,15 @@
   .pbar{ height:7px; border-radius:5px; background:#eee4d8; overflow:hidden; min-width:90px; }
   .pbar > span{ display:block; height:100%; border-radius:5px; }
   .pct-cell{ display:flex; align-items:center; gap:9px; }
-  .pct-cell .pct-num{ font-size:0.7rem; color:var(--text-dim); font-variant-numeric:tabular-nums; min-width:38px; text-align:right; }
+  .pct-cell .pct-num{ font-size:0.7rem; font-weight:600; color:var(--text-dim); font-variant-numeric:tabular-nums; min-width:38px; text-align:right; }
   /* ── model cards ── */
   .mcard{ border:1px solid var(--line); border-left-width:4px; border-radius:11px; padding:14px 16px; margin-bottom:10px; background:#fff; }
   .mcard .mc-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
   .mcard .mc-name{ font-size:0.9rem; font-weight:700; color:var(--black); }
-  .mcard .mc-slug{ font-size:0.64rem; color:var(--text-dim); }
+  .mcard .mc-slug{ font-size:0.66rem; color:var(--text-dim); font-weight:600; }
   .mcard .mc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
   @media (max-width:680px){ .mcard .mc-grid{ grid-template-columns:repeat(2,1fr); } }
-  .mcard .mc-stat .k{ font-size:0.58rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
+  .mcard .mc-stat .k{ font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
   .mcard .mc-stat .v{ font-size:0.92rem; font-weight:700; color:var(--brown-deep); font-variant-numeric:tabular-nums; }
   /* ── stacked daily chart ── */
   .schart{ display:flex; align-items:flex-end; gap:3px; height:170px; padding-top:8px; }
@@ -228,7 +228,7 @@
   .schart .scol .tip{ display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); white-space:nowrap; background:var(--black); color:#fff; font-size:0.64rem; padding:4px 8px; border-radius:6px; z-index:5; }
   .schart .scol:hover .tip{ display:block; }
   .legend{ display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
-  .legend .lg{ display:inline-flex; align-items:center; gap:7px; font-size:0.7rem; color:var(--text-dim); cursor:pointer; }
+  .legend .lg{ display:inline-flex; align-items:center; gap:7px; font-size:0.72rem; font-weight:600; color:var(--text-dim); cursor:pointer; }
   .legend .lg .sw{ width:11px; height:11px; border-radius:3px; }
   .legend .lg.off{ opacity:0.35; text-decoration:line-through; }
   .range-tabs{ display:inline-flex; gap:4px; margin-left:auto; }
@@ -237,10 +237,14 @@
   /* ── comparison ── */
   .cmp-win{ color:#2f8a3e; font-weight:700; }
   .cmp-win::after{ content:" \2713"; }
-  .radar-wrap{ display:flex; gap:24px; align-items:center; flex-wrap:wrap; justify-content:center; }
-  .radar-legend{ display:flex; flex-direction:column; gap:7px; font-size:0.74rem; }
-  .radar-legend .rl{ display:inline-flex; align-items:center; gap:8px; }
-  .radar-legend .rl .sw{ width:11px; height:11px; border-radius:3px; }
+  .radar-wrap{ display:flex; gap:28px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .radar-legend{ display:flex; flex-direction:column; gap:11px; font-size:0.78rem; }
+  .radar-legend .rl{ display:inline-flex; align-items:flex-start; gap:9px; }
+  .radar-legend .rl .sw{ width:12px; height:12px; border-radius:3px; flex-shrink:0; margin-top:3px; }
+  .radar-legend .rl-txt{ display:flex; flex-direction:column; line-height:1.3; }
+  .radar-legend .rl-txt b{ color:var(--black); font-weight:600; }
+  .radar-legend .rl-sub{ font-size:0.7rem; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+  .radar-note{ flex-basis:100%; text-align:center; font-size:0.72rem; color:var(--text-dim); margin-top:6px; }
   /* ── log ── */
   .log-toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
   .log-toolbar select, .log-toolbar input{ height:36px; width:auto; min-width:120px; font-size:0.78rem; }
@@ -261,7 +265,7 @@
   @media (max-width:760px){ .insight-grid{ grid-template-columns:repeat(2,1fr); } }
   .insight{ border:1px solid var(--line); border-radius:11px; padding:13px 15px; background:#fbf8f4; }
   .insight .i-ico{ font-size:1rem; margin-bottom:6px; }
-  .insight .i-label{ font-size:0.58rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
+  .insight .i-label{ font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
   .insight .i-val{ font-size:0.86rem; font-weight:700; color:var(--brown-deep); margin-top:3px; }
   /* ── range selector ── */
   .an-range{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
@@ -274,16 +278,16 @@
   .an-range button.active{ background:linear-gradient(135deg,var(--brown-deep),var(--brown-mid)); color:#fff; border-color:transparent; }
   .an-range button.active i{ opacity:1; }
   /* ── log unit suffix ── */
-  .an-table .u{ font-size:0.62rem; color:var(--text-dim); font-weight:400; }
+  .an-table .u{ font-size:0.62rem; color:var(--text-dim); font-weight:600; }
   /* ── mode comparison ── */
   .mode-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   @media (max-width:680px){ .mode-grid{ grid-template-columns:1fr; } }
   .mode-col{ border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:#fbf8f4; }
   .mode-col .mc-title{ font-size:0.82rem; font-weight:700; color:var(--brown-deep); margin-bottom:12px; }
   .mode-stat{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:0.8rem; }
-  .mode-stat span{ color:var(--text-dim); } .mode-stat b{ color:var(--black); font-variant-numeric:tabular-nums; }
+  .mode-stat span{ color:var(--text-dim); font-weight:600; } .mode-stat b{ color:var(--black); font-weight:700; font-variant-numeric:tabular-nums; }
   .mode-model{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 0; font-size:0.78rem; }
-  .mode-model .mm-meta{ font-size:0.68rem; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+  .mode-model .mm-meta{ font-size:0.68rem; font-weight:600; color:var(--text-dim); font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -998,21 +1002,49 @@
   // ── Tab 4: Comparison ──
   function radar(bm){
     const models = bm.slice(0, 6);
-    const axes = [['Speed', m=>m.avgLatencyMs?1/m.avgLatencyMs:0], ['Cost eff', m=>m.tokens?1/(m.cost/m.tokens*1000+1e-9):0], ['Volume', m=>m.tokens||0], ['Frequency', m=>m.calls||0]];
+    // [label, normFn (drives the shape, higher = further out), realFn (the actual
+    //  number shown on hover so the normalized profile stays legitimate)].
+    const axes = [
+      ['Speed',      m=> m.avgLatencyMs ? 1/m.avgLatencyMs : 0,             m=> m.avgLatencyMs!=null ? ('avg ' + fmtMs(m.avgLatencyMs)) : 'not recorded'],
+      ['Cost eff.',  m=> m.tokens ? 1/(m.cost/m.tokens*1000+1e-9) : 0,       m=> m.tokens ? (money4(m.cost/m.tokens*1000) + ' / 1K tok') : 'n/a'],
+      ['Volume',     m=> m.tokens||0,                                        m=> compact(m.tokens||0) + ' tokens'],
+      ['Frequency',  m=> m.calls||0,                                         m=> fmtInt(m.calls||0) + ' calls'],
+    ];
     const maxes = axes.map(([,fn]) => Math.max(...models.map(fn), 1e-9));
-    const cx=130, cy=130, R=100, N=axes.length, ang = i => (-Math.PI/2) + i*2*Math.PI/N;
+    const cx=190, cy=150, R=104, N=axes.length, ang = i => (-Math.PI/2) + i*2*Math.PI/N;
     const ring = r => axes.map((_,i)=> (cx+Math.cos(ang(i))*r).toFixed(1) + ',' + (cy+Math.sin(ang(i))*r).toFixed(1)).join(' ');
-    let svg = '<svg viewBox="0 0 260 270" width="260" height="270">';
+    let svg = '<svg viewBox="0 0 380 300" width="380" height="300" style="max-width:100%;height:auto;">';
+    // concentric grid rings + spokes
     [0.25,0.5,0.75,1].forEach(f => svg += '<polygon points="' + ring(R*f) + '" fill="none" stroke="#e7ddd2"/>');
     axes.forEach((a,i)=>{ const x=cx+Math.cos(ang(i))*R, y=cy+Math.sin(ang(i))*R; svg += '<line x1="'+cx+'" y1="'+cy+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#e7ddd2"/>'; });
-    axes.forEach(([lab],i)=>{ const x=cx+Math.cos(ang(i))*(R+18), y=cy+Math.sin(ang(i))*(R+18); svg += '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" font-size="9" fill="#8a7c6e" text-anchor="middle" dominant-baseline="middle">'+lab+'</text>'; });
+    // axis labels — anchored by side so they never clip the viewBox, readable font
+    axes.forEach(([lab],i)=>{
+      const dx=Math.cos(ang(i)), dy=Math.sin(ang(i));
+      const x=cx+dx*(R+22), y=cy+dy*(R+22);
+      const anchor = dx>0.1 ? 'start' : dx<-0.1 ? 'end' : 'middle';
+      const baseline = dy<-0.5 ? 'auto' : dy>0.5 ? 'hanging' : 'middle';
+      svg += '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" font-family="Montserrat,sans-serif" font-size="12" font-weight="600" fill="#6f6052" text-anchor="'+anchor+'" dominant-baseline="'+baseline+'">'+lab+'</text>';
+    });
+    // model polygons + per-vertex dots carrying the real value as a hover tooltip
     models.forEach(m => {
-      const pts = axes.map(([,fn],i)=>{ const r = R*Math.max(fn(m)/maxes[i], 0.02); return (cx+Math.cos(ang(i))*r).toFixed(1)+','+(cy+Math.sin(ang(i))*r).toFixed(1); }).join(' ');
-      svg += '<polygon points="'+pts+'" fill="'+colorFor(m.model)+'22" stroke="'+colorFor(m.model)+'" stroke-width="1.5"/>';
+      const col = colorFor(m.model);
+      const verts = axes.map(([,fn],i)=>{ const r=R*Math.max(fn(m)/maxes[i],0.02); return { x:cx+Math.cos(ang(i))*r, y:cy+Math.sin(ang(i))*r }; });
+      const pts = verts.map(v=>v.x.toFixed(1)+','+v.y.toFixed(1)).join(' ');
+      svg += '<polygon points="'+pts+'" fill="'+col+'22" stroke="'+col+'" stroke-width="1.6"><title>'+esc(shortModel(m.model))+'</title></polygon>';
+      verts.forEach((v,i)=>{
+        svg += '<circle cx="'+v.x.toFixed(1)+'" cy="'+v.y.toFixed(1)+'" r="3.6" fill="'+col+'" stroke="#fff" stroke-width="1.2" style="cursor:pointer;">' +
+          '<title>'+esc(shortModel(m.model))+' — '+axes[i][0]+': '+esc(axes[i][2](m))+'</title></circle>';
+      });
     });
     svg += '</svg>';
-    const leg = '<div class="radar-legend">' + models.map(m => '<span class="rl"><span class="sw" style="background:'+colorFor(m.model)+'"></span>'+esc(shortModel(m.model))+'</span>').join('') + '</div>';
-    return '<div class="radar-wrap">' + svg + leg + '</div>';
+    // Legend doubles as a data table: real calls + spend per model.
+    const leg = '<div class="radar-legend">' + models.map(m =>
+      '<span class="rl"><span class="sw" style="background:'+colorFor(m.model)+'"></span>' +
+      '<span class="rl-txt"><b>'+esc(shortModel(m.model))+'</b>' +
+      '<span class="rl-sub">'+fmtInt(m.calls)+' calls · '+costFull(m.cost)+' · '+compact(m.tokens)+' tok</span></span></span>'
+    ).join('') + '</div>';
+    return '<div class="radar-wrap">' + svg + leg +
+      '<div class="radar-note">Each axis is normalized to the highest value among the models shown — hover a point for the real figure.</div></div>';
   }
   // Pipeline 1 vs Pipeline 2 side-by-side: consumption, spend, and which models ran under each.
   function modeCompare(){
