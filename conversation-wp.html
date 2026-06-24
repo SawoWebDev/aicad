@@ -105,6 +105,8 @@
   }
   #sawocad-app .sc-col-head .sc-clear i{ color: #fff; }
   #sawocad-app .sc-col-head .sc-clear:hover{ background: rgba(255,255,255,0.30); }
+  #sawocad-app .sc-col-head #sc-clearBtn{ display: none; }
+  #sawocad-app .sc-col-head #sc-clearBtn.visible{ display: inline-flex; }
 
   #sawocad-app #sc-chatThread{
     flex: 1; overflow-y: auto; min-height: 0;
@@ -194,7 +196,7 @@
 
   #sawocad-app #sc-output{
     flex: 1; display: flex; align-items: center; justify-content: center;
-    padding: 28px; overflow: auto; min-height: 0;
+    padding: 28px; overflow: hidden; min-height: 0;
 
     background:
       radial-gradient(circle at 50% 38%, rgba(175,133,100,0.07), transparent 60%),
@@ -213,10 +215,11 @@
   #sawocad-app .sc-empty p{ font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; margin: 0; }
 
   #sawocad-app .sc-frame{
-    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; max-width: 100%;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    max-width: 100%; max-height: 100%;
     box-shadow: 0 20px 55px rgba(140,100,68,0.22); background:#fff;
   }
-  #sawocad-app .sc-frame img{ display: block; max-width: 100%; max-height: 70vh; cursor: zoom-in; }
+  #sawocad-app .sc-frame img{ display: block; max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
 
   #sawocad-app .sc-error{
     text-align: center; max-width: 440px; white-space: pre-wrap;
@@ -301,7 +304,7 @@
   <div class="sc-grid">
     <div class="sc-col">
       <div class="sc-col-head"><i class="fas fa-comments"></i> Drawing Assistant
-        <button id="sc-clearBtn" class="sc-clear" title="Start a new conversation"><i class="fas fa-rotate-left"></i> New chat</button>
+        <button id="sc-clearBtn" class="sc-clear" title="Clear this conversation"><i class="fas fa-rotate-left"></i> Clear chat</button>
       </div>
       <div id="sc-chatThread"></div>
       <div class="sc-input-row">
@@ -616,6 +619,13 @@ ${REFERENCE_TEMPLATE}`;
   const sendBtn = document.getElementById('sc-sendBtn');
   const output = document.getElementById('sc-output');
   const downloadBtn = document.getElementById('sc-downloadBtn');
+  const clearBtnEl = document.getElementById('sc-clearBtn');
+
+  function updateClearBtn(){
+    if(!clearBtnEl) return;
+    const clientSpoke = Array.isArray(history) && history.some(m => m && m.role === 'user' && String(m.content || '').trim());
+    clearBtnEl.classList.toggle('visible', clientSpoke);
+  }
 
   const outActions = downloadBtn;
   const lightbox = document.getElementById('sc-lightbox');
@@ -870,6 +880,7 @@ ${REFERENCE_TEMPLATE}`;
       }
     });
     if(s.currentImageUrl){ renderImage(s.currentImageUrl); } else { renderEmpty(); }
+    updateClearBtn();
   }
 
   function clearConversation(){
@@ -886,6 +897,7 @@ ${REFERENCE_TEMPLATE}`;
     busy = false; sendBtn.disabled = false;
     renderEmpty();
     initChat();
+    updateClearBtn();
   }
 
   async function callChatModel(messages, systemPrompt, phase){
@@ -1231,6 +1243,7 @@ ${REFERENCE_TEMPLATE}`;
 
     addMsg('user', text);
     history.push({ role: 'user', content: text });
+    updateClearBtn();
     chatInput.value = '';
 
     if(leadStage !== 'done'){
