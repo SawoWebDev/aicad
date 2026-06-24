@@ -148,6 +148,91 @@
   .placeholder.error h3{ color:#C9302C; }
   .placeholder pre{ margin-top:14px; font-size:0.72rem; background:#20242a; color:#e8dfd3; padding:12px 16px; border-radius:8px; max-width:560px; white-space:pre-wrap; text-align:left; }
   @media (max-width:820px){ #app{ grid-template-columns:1fr; grid-template-rows:240px 1fr; } }
+
+  /* ════════════ Conversation Analytics drawer (admin-only) ════════════ */
+  #anvScrim{ position:fixed; inset:0; background:rgba(20,22,23,0.45); opacity:0; visibility:hidden; transition:opacity .28s ease; z-index:99998; }
+  #anvScrim.open{ opacity:1; visibility:visible; }
+  #anvDrawer{
+    position:fixed; top:0; right:0; height:100vh; width:min(580px,96vw);
+    background:var(--bg); box-shadow:-18px 0 50px rgba(20,22,23,0.25);
+    transform:translateX(100%); transition:transform .28s ease; z-index:99999;
+    display:flex; flex-direction:column; min-height:0;
+  }
+  #anvDrawer.open{ transform:translateX(0); }
+  .anv-head{
+    display:flex; align-items:center; gap:12px; padding:16px 20px; flex-shrink:0;
+    background:linear-gradient(120deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
+  }
+  .anv-head .anv-ico{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.16); font-size:0.95rem; flex-shrink:0; }
+  .anv-head h3{ margin:0; font-size:0.95rem; font-weight:700; letter-spacing:0.3px; }
+  .anv-head .anv-sub{ font-size:0.68rem; opacity:0.85; margin-top:1px; }
+  .anv-close{ margin-left:auto; background:rgba(255,255,255,0.14); border:none; color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.9rem; flex-shrink:0; transition:background .2s; }
+  .anv-close:hover{ background:rgba(255,255,255,0.28); }
+  .anv-body{ flex:1; overflow-y:auto; min-height:0; padding:18px 20px 32px; }
+  .anv-body::-webkit-scrollbar{ width:8px; }
+  .anv-body::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  .anv-loading,.anv-empty{ padding:46px 16px; text-align:center; color:var(--text-dim); font-size:0.85rem; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .anv-empty i{ font-size:1.6rem; color:var(--brown-light); }
+  .anv-warn{ background:#fff7e6; border:1px solid #e8d28a; color:#7a5c12; border-radius:10px; padding:12px 14px; font-size:0.78rem; line-height:1.5; }
+  .anv-warn code{ background:#f0e6c8; padding:1px 5px; border-radius:4px; }
+  .anv-section{ margin-top:22px; }
+  .anv-section-label{ font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--brown-deep); margin-bottom:11px; display:flex; align-items:center; gap:7px; }
+  .anv-section-label i{ color:var(--brown-mid); }
+  /* Summary cards */
+  .anv-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:11px; }
+  .anv-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px 14px; border-top:3px solid var(--brown-mid); }
+  .anv-card-label{ font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-dim); }
+  .anv-card-big{ font-size:1.18rem; font-weight:800; color:var(--black); margin-top:5px; line-height:1.2; }
+  .anv-card-sub{ font-size:0.66rem; color:var(--text-dim); margin-top:3px; }
+  /* Model / provider badge (shared visual with admin dashboard) */
+  .mbadge{ display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--black); }
+  .mbadge .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  /* Tables */
+  .anv-table{ width:100%; border-collapse:collapse; font-size:0.76rem; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .anv-table th,.anv-table td{ padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .anv-table th{ font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); background:var(--bg); }
+  .anv-table th.num,.anv-table td.num{ text-align:right; }
+  .anv-table th.sortable{ cursor:pointer; user-select:none; }
+  .anv-table th.sortable:hover{ color:var(--brown-deep); }
+  .anv-table th .ar{ color:var(--brown-mid); }
+  .anv-table tbody tr:last-child td{ border-bottom:none; }
+  .anv-table tr.anv-top td{ background:rgba(166,120,83,0.09); font-weight:600; }
+  .anv-table tr.anv-totals td{ background:var(--bg); font-weight:700; border-top:2px solid var(--line); }
+  .anv-table .u{ color:var(--text-dim); font-weight:400; font-size:0.62rem; }
+  /* Token-flow bars */
+  .anv-flow-row{ display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .anv-flow-name{ width:130px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; }
+  .anv-flow-wrap{ flex:1; display:flex; }
+  .anv-flow-track{ height:16px; border-radius:5px; overflow:hidden; display:flex; min-width:3px; }
+  .anv-flow-in{ height:100%; background:#3B82F6; }
+  .anv-flow-out{ height:100%; background:#22C55E; }
+  .anv-flow-val{ width:62px; flex-shrink:0; text-align:right; font-size:0.7rem; color:var(--text-dim); }
+  .anv-flow-legend{ display:flex; gap:16px; font-size:0.66rem; color:var(--text-dim); margin-top:4px; }
+  .anv-flow-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .anv-flow-legend i{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+  /* Drill-down calls */
+  .anv-toolbar{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .anv-toolbar select{ border:1.5px solid var(--line); border-radius:7px; background:#fff; font-family:'Montserrat',sans-serif; font-size:0.74rem; padding:6px 9px; color:var(--black); }
+  .anv-call{ background:var(--panel); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; overflow:hidden; }
+  .anv-call-row{ display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; }
+  .anv-call-row:hover{ background:var(--bg); }
+  .anv-call-time{ font-size:0.7rem; color:var(--text-dim); font-weight:600; width:118px; flex-shrink:0; }
+  .anv-call-phase{ font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 7px; border-radius:9px; background:rgba(166,120,83,0.13); color:var(--brown-deep); flex-shrink:0; }
+  .anv-call-tok{ margin-left:auto; font-size:0.72rem; color:var(--black); font-weight:600; flex-shrink:0; }
+  .anv-call-cost{ font-size:0.72rem; color:var(--brown-deep); font-weight:700; width:78px; text-align:right; flex-shrink:0; }
+  .anv-call-caret{ color:var(--text-dim); font-size:0.7rem; flex-shrink:0; transition:transform .2s; }
+  .anv-call.open .anv-call-caret{ transform:rotate(90deg); }
+  .anv-call-detail{ display:none; padding:0 12px 11px; flex-wrap:wrap; gap:6px 16px; }
+  .anv-call.open .anv-call-detail{ display:flex; }
+  .anv-call-detail .kv{ font-size:0.68rem; color:var(--text-dim); }
+  .anv-call-detail .kv b{ color:var(--black); font-weight:600; }
+  /* Insight cards */
+  .anv-insights{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .anv-insight{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--brown-mid); border-radius:10px; padding:11px 13px; }
+  .anv-insight .i-ico{ font-size:1rem; }
+  .anv-insight .i-label{ font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); margin-top:4px; }
+  .anv-insight .i-val{ font-size:0.82rem; font-weight:700; color:var(--black); margin-top:3px; }
+  @media (max-width:520px){ .anv-cards,.anv-insights{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -190,10 +275,27 @@
 
   <div id="logLightbox"><img id="logLightboxImg" src="" alt="Generated drawing full size" /></div>
 
+  <!-- Conversation Analytics drawer (admin-only; opened from the Analytics button) -->
+  <div id="anvScrim"></div>
+  <aside id="anvDrawer" aria-hidden="true">
+    <div class="anv-head">
+      <div class="anv-ico"><i class="fas fa-chart-pie"></i></div>
+      <div>
+        <h3>Conversation Analytics</h3>
+        <div class="anv-sub" id="anvSub">Usage, cost &amp; model breakdown</div>
+      </div>
+      <button class="anv-close" id="anvClose" title="Close"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="anv-body" id="anvBody"></div>
+  </aside>
+
 <script src="/cms.js"></script>
 <script>
 (function(){
   const esc = CMS.esc, fmt = CMS.fmt;
+  // Shared analytics formatters/badges (same copy the admin dashboard uses).
+  const { money, money4, costFull, compact, shortModel, fmtInt, fmtMs,
+          colorFor, modelBadge, providerBadge, speedFor, PHASE_LABEL } = CMS;
   // Escape, then render the same tiny safe markdown subset the chat uses so
   // **bold** details show as real bold in the logs too. Only <strong>/<em> are
   // injected into already-escaped text, so this stays XSS-safe.
@@ -400,6 +502,7 @@
           '<button class="btn copy-link" id="copyLink"><i class="fas fa-link"></i> Copy link</button>' +
           '<button class="btn send-sales" id="sendSales"><i class="fas fa-paper-plane"></i> ' +
             (s.sent_to_sales ? 'Resend to sales' : 'Send to sales') + '</button>' +
+          (isAdmin ? '<button class="btn" id="analyticsBtn"><i class="fas fa-chart-pie"></i> Analytics</button>' : '') +
           '<button class="btn" id="detailsBtn"><i class="fas fa-circle-info"></i> Details</button>' +
         '</div>' +
       '</div>' +
@@ -447,6 +550,10 @@
         setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-link"></i> Copy link'; }, 1500);
       });
     });
+
+    // Analytics drawer (admin-only): per-conversation usage/cost breakdown.
+    const analyticsBtn = document.getElementById('analyticsBtn');
+    if(analyticsBtn) analyticsBtn.addEventListener('click', () => openAnalytics(s.session_id, convName(s)));
 
     // Details toggle: show/hide the session + contact metadata panel.
     const detailsBtn = document.getElementById('detailsBtn');
@@ -527,6 +634,226 @@
       '<div class="placeholder error">' +
         '<div class="icon-wrapper" style="background:linear-gradient(135deg,#C9302C,#e2584d);"><i class="fas fa-triangle-exclamation"></i></div>' +
         '<h3>' + esc(title) + '</h3><pre>' + esc(detail) + '</pre></div>';
+  }
+
+  // ════════════ Conversation Analytics drawer (admin-only) ════════════
+  const anvScrim = document.getElementById('anvScrim');
+  const anvDrawer = document.getElementById('anvDrawer');
+  const anvBody = document.getElementById('anvBody');
+  const anvSub = document.getElementById('anvSub');
+  const anvClose = document.getElementById('anvClose');
+  let anvData = null;
+  let anvSort = { key:'tokens', dir:'desc' };   // model-table sort
+  let anvFilter = '';                            // drill-down model filter
+  const ANV_CALL_CAP = 200;                      // cap drill-down rows (very long convos)
+
+  function openAnalyticsDrawer(){ anvScrim.classList.add('open'); anvDrawer.classList.add('open'); anvDrawer.setAttribute('aria-hidden','false'); }
+  function closeAnalytics(){ anvScrim.classList.remove('open'); anvDrawer.classList.remove('open'); anvDrawer.setAttribute('aria-hidden','true'); }
+  anvClose.addEventListener('click', closeAnalytics);
+  anvScrim.addEventListener('click', closeAnalytics);
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && anvDrawer.classList.contains('open')) closeAnalytics(); });
+
+  async function openAnalytics(sessionId, name){
+    anvSort = { key:'tokens', dir:'desc' }; anvFilter = ''; anvData = null;
+    anvSub.textContent = name ? ('Usage for ' + name) : 'Usage, cost & model breakdown';
+    anvBody.innerHTML = '<div class="anv-loading"><i class="fas fa-circle-notch fa-spin"></i> Loading usage…</div>';
+    openAnalyticsDrawer();
+    try{
+      anvData = await CMS.get('/api/conversations?action=analytics&id=' + encodeURIComponent(sessionId));
+      renderAnalytics();
+    }catch(e){
+      anvBody.innerHTML = '<div class="anv-warn">' + esc(e.message || 'Could not load analytics.') + '</div>';
+    }
+  }
+
+  function fmtDur(ms){
+    if(ms == null) return '—';
+    const s = Math.round(ms/1000);
+    if(s < 60) return s + 's';
+    const m = Math.floor(s/60), sec = s % 60;
+    if(m < 60) return m + 'm' + (sec ? (' ' + sec + 's') : '');
+    const h = Math.floor(m/60), min = m % 60;
+    return h + 'h' + (min ? (' ' + min + 'm') : '');
+  }
+  // A model can route to several upstream providers (e.g. deepseek via Cloudflare,
+  // GMICloud, …), so the provider cell is derived from this model's actual calls.
+  function providersForModel(model){
+    const set = new Set();
+    (anvData.events || []).forEach(r => { if(r.model === model && r.provider) set.add(r.provider); });
+    return Array.from(set);
+  }
+  function anvCard(label, big, sub){
+    return '<div class="anv-card"><div class="anv-card-label">' + label + '</div>' +
+      '<div class="anv-card-big">' + big + '</div><div class="anv-card-sub">' + (sub || '') + '</div></div>';
+  }
+
+  function renderAnalytics(){
+    const d = anvData;
+    if(d.needsMigration){
+      anvBody.innerHTML = '<div class="anv-warn"><b>Usage table needs the latest columns.</b> Run the <code>usage_events</code> migration in Supabase, then refresh. New AI calls record automatically once it exists.</div>';
+      return;
+    }
+    const events = d.events || [];
+    if(!events.length){
+      anvBody.innerHTML = '<div class="anv-empty"><i class="fas fa-chart-pie"></i>' +
+        '<div>No usage recorded for this conversation.</div>' +
+        '<div style="font-size:0.74rem;">It may predate usage logging, or no AI calls were billed to this session.</div></div>';
+      return;
+    }
+    const t = d.total || {};
+    const bm = d.byModel || [];
+    const totTok = t.tokens || 0;
+    const mostUsed = bm.slice().sort((a,b)=>b.tokens-a.tokens)[0];
+
+    let h = '<div class="anv-section" style="margin-top:4px;"><div class="anv-cards">';
+    h += anvCard('Total tokens', compact(totTok), fmtInt(t.input||0) + ' in · ' + fmtInt(t.output||0) + ' out');
+    h += anvCard('Total cost', money(t.cost||0), money4(t.calls ? t.cost/t.calls : 0) + ' avg/call');
+    h += anvCard('AI calls', fmtInt(t.calls||0), bm.length + ' model' + (bm.length===1?'':'s'));
+    h += anvCard('Duration', fmtDur(d.duration && d.duration.ms), d.duration ? fmt(d.duration.first) : '—');
+    h += anvCard('Avg tokens/call', t.calls ? compact(Math.round(totTok/t.calls)) : '—', 'across the conversation');
+    h += anvCard('Most-used model', mostUsed ? modelBadge(mostUsed.model) : '—', mostUsed ? (compact(mostUsed.tokens) + ' tok') : '');
+    h += anvCard('Peak call', d.peak ? compact(d.peak.tokens) + ' tok' : '—', d.peak ? fmt(d.peak.created_at) : '');
+    h += '</div></div>';
+
+    h += modelTable() + tokenFlow() + drillDown() + insightsSection();
+    anvBody.innerHTML = h;
+    wireAnalytics();
+  }
+
+  function modelTable(){
+    const bm = (anvData.byModel || []).slice();
+    const t = anvData.total || {};
+    const totTok = t.tokens || 0;
+    const topModel = bm.slice().sort((a,b)=>b.tokens-a.tokens)[0];  // highlight (by tokens)
+    const k = anvSort.key;
+    bm.sort((a,b)=>{
+      let av, bv;
+      if(k==='model'){ av = shortModel(a.model); bv = shortModel(b.model); }
+      else if(k==='provider'){ av = providersForModel(a.model).join(); bv = providersForModel(b.model).join(); }
+      else if(k==='pct'){ av = a.tokens; bv = b.tokens; }
+      else { av = Number(a[k])||0; bv = Number(b[k])||0; }
+      const r = av<bv?-1:av>bv?1:0; return anvSort.dir==='asc'?r:-r;
+    });
+    const arrow = key => anvSort.key===key ? (anvSort.dir==='asc'?'▲':'▼') : '';
+    const cols = [['model','Model',0],['provider','Provider',0],['prompt_tokens','Input',1],['completion_tokens','Output',1],['tokens','Total',1],['cost','Cost',1],['pct','%',1]];
+    let h = '<div class="anv-section"><div class="anv-section-label"><i class="fas fa-table-list"></i> Model breakdown</div>';
+    h += '<div style="overflow-x:auto;"><table class="anv-table" id="anvModelTable"><thead><tr>' +
+      cols.map(c=>'<th class="sortable' + (c[2]?' num':'') + '" data-k="' + c[0] + '">' + c[1] + ' <span class="ar">' + arrow(c[0]) + '</span></th>').join('') +
+      '</tr></thead><tbody>';
+    h += bm.map(m=>{
+      const provs = providersForModel(m.model);
+      const provCell = provs.length===0 ? '<span style="color:var(--text-dim)">—</span>'
+        : provs.length===1 ? providerBadge(provs[0])
+        : '<span style="color:var(--text-dim)">' + provs.length + ' providers</span>';
+      const pct = totTok ? Math.round(m.tokens/totTok*100) : 0;
+      return '<tr' + (topModel && m.model===topModel.model ? ' class="anv-top"' : '') + '>' +
+        '<td>' + modelBadge(m.model) + '</td>' +
+        '<td>' + provCell + '</td>' +
+        '<td class="num">' + fmtInt(m.prompt_tokens) + '</td>' +
+        '<td class="num">' + fmtInt(m.completion_tokens) + '</td>' +
+        '<td class="num">' + compact(m.tokens) + '</td>' +
+        '<td class="num">' + costFull(m.cost) + '</td>' +
+        '<td class="num">' + pct + '%</td></tr>';
+    }).join('');
+    h += '<tr class="anv-totals"><td>Total</td><td></td>' +
+      '<td class="num">' + fmtInt(t.input||0) + '</td><td class="num">' + fmtInt(t.output||0) + '</td>' +
+      '<td class="num">' + compact(totTok) + '</td><td class="num">' + costFull(t.cost||0) + '</td><td class="num">100%</td></tr>';
+    h += '</tbody></table></div></div>';
+    return h;
+  }
+
+  function tokenFlow(){
+    const bm = (anvData.byModel || []).slice().sort((a,b)=>b.tokens-a.tokens);
+    const max = Math.max.apply(null, bm.map(m=>m.tokens).concat([1]));
+    let h = '<div class="anv-section"><div class="anv-section-label"><i class="fas fa-arrows-left-right"></i> Token flow (input vs output)</div>';
+    h += bm.map(m=>{
+      const w = Math.max(Math.round(m.tokens/max*100), 2);
+      const inPct = m.tokens ? (m.prompt_tokens/m.tokens*100) : 0;
+      return '<div class="anv-flow-row">' +
+        '<div class="anv-flow-name">' + modelBadge(m.model) + '</div>' +
+        '<div class="anv-flow-wrap"><div class="anv-flow-track" style="width:' + w + '%">' +
+          '<div class="anv-flow-in" style="width:' + inPct + '%" title="Input ' + fmtInt(m.prompt_tokens) + '"></div>' +
+          '<div class="anv-flow-out" style="width:' + (100-inPct) + '%" title="Output ' + fmtInt(m.completion_tokens) + '"></div>' +
+        '</div></div>' +
+        '<div class="anv-flow-val">' + compact(m.tokens) + '</div></div>';
+    }).join('');
+    h += '<div class="anv-flow-legend"><span><i style="background:#3B82F6"></i> Input</span><span><i style="background:#22C55E"></i> Output</span></div></div>';
+    return h;
+  }
+
+  function drillDown(){
+    const all = anvData.events || [];
+    const models = Array.from(new Set(all.map(r=>r.model)));
+    const rows = anvFilter ? all.filter(r=>r.model===anvFilter) : all;
+    const shown = rows.slice(0, ANV_CALL_CAP);
+    const capped = rows.length > ANV_CALL_CAP;
+    let h = '<div class="anv-section"><div class="anv-section-label"><i class="fas fa-list-ul"></i> Per-call detail</div>';
+    h += '<div class="anv-toolbar"><select id="anvCallFilter"><option value="">All models</option>' +
+      models.map(m=>'<option value="' + esc(m) + '"' + (anvFilter===m?' selected':'') + '>' + esc(shortModel(m)) + '</option>').join('') + '</select>' +
+      '<span style="font-size:0.68rem;color:var(--text-dim);margin-left:auto;">' + shown.length + (capped ? (' of ' + rows.length) : '') + ' call' + (rows.length===1?'':'s') + '</span></div>';
+    h += shown.map((r,i)=>{
+      const total = Number(r.total_tokens) || ((Number(r.prompt_tokens)||0) + (Number(r.completion_tokens)||0));
+      const sp = speedFor(r);
+      return '<div class="anv-call" data-i="' + i + '">' +
+        '<div class="anv-call-row">' +
+          '<i class="fas fa-chevron-right anv-call-caret"></i>' +
+          '<span class="anv-call-time">' + esc(fmt(r.created_at)) + '</span>' +
+          '<span class="anv-call-phase">' + esc(PHASE_LABEL[r.phase] || r.phase || '—') + '</span> ' +
+          modelBadge(r.model) +
+          '<span class="anv-call-tok">' + compact(total) + ' tok</span>' +
+          '<span class="anv-call-cost">' + costFull(r.cost) + '</span>' +
+        '</div>' +
+        '<div class="anv-call-detail">' +
+          '<span class="kv"><b>Provider</b> ' + esc(r.provider||'—') + '</span>' +
+          '<span class="kv"><b>Input</b> ' + fmtInt(r.prompt_tokens) + ' tok</span>' +
+          '<span class="kv"><b>Output</b> ' + fmtInt(r.completion_tokens) + ' tok</span>' +
+          '<span class="kv"><b>Latency</b> ' + fmtMs(r.latency_ms) + '</span>' +
+          '<span class="kv"><b>Speed</b> ' + (sp!=null ? sp.toFixed(1) + ' tok/s' : '—') + '</span>' +
+          '<span class="kv"><b>Mode</b> ' + (r.mode!=null ? ('Mode ' + r.mode) : '—') + '</span>' +
+          '<span class="kv"><b>Finish</b> ' + esc(r.finish_reason||'—') + '</span>' +
+        '</div></div>';
+    }).join('');
+    h += '</div>';
+    return h;
+  }
+
+  function insightsSection(){
+    const events = anvData.events || [];
+    const bm = anvData.byModel || [];
+    const perf = anvData.performance || {};
+    const t = anvData.total || {};
+    if(!events.length) return '';
+    const dearestCall = events.slice().sort((a,b)=>(Number(b.cost)||0)-(Number(a.cost)||0))[0];
+    const per1k = m => m.tokens ? m.cost/m.tokens*1000 : Infinity;
+    const withTok = bm.filter(m=>m.tokens>0);
+    const cheapest = withTok.length ? withTok.reduce((a,b)=>per1k(b)<per1k(a)?b:a) : null;
+    const effRatio = t.input ? (t.output/t.input) : null;
+    const ins = (ico,label,val)=>'<div class="anv-insight"><div class="i-ico">' + ico + '</div><div class="i-label">' + label + '</div><div class="i-val">' + val + '</div></div>';
+    let h = '<div class="anv-section"><div class="anv-section-label"><i class="fas fa-lightbulb"></i> Cost &amp; performance</div><div class="anv-insights">';
+    h += ins('💰','Most expensive call', dearestCall ? (costFull(dearestCall.cost) + ' · ' + esc(shortModel(dearestCall.model))) : '—');
+    h += ins('💸','Most efficient model', cheapest ? (esc(shortModel(cheapest.model)) + ' · ' + money4(per1k(cheapest)) + '/1K') : '—');
+    h += ins('⚖️','Efficiency ratio', effRatio!=null ? (effRatio.toFixed(2) + ' out/in') : '—');
+    h += ins('⚡','Avg latency', perf.avgLatencyMs!=null ? fmtMs(perf.avgLatencyMs) : 'not recorded');
+    h += ins('🚀','Fastest call', perf.fastest ? (esc(shortModel(perf.fastest.model)) + ' · ' + fmtMs(perf.fastest.ms)) : '—');
+    h += ins('🐢','Slowest call', perf.slowest ? (esc(shortModel(perf.slowest.model)) + ' · ' + fmtMs(perf.slowest.ms)) : '—');
+    h += '</div></div>';
+    return h;
+  }
+
+  function wireAnalytics(){
+    document.querySelectorAll('#anvModelTable th.sortable').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const k = th.dataset.k;
+        if(anvSort.key===k) anvSort.dir = anvSort.dir==='asc'?'desc':'asc';
+        else { anvSort.key = k; anvSort.dir = (k==='model'||k==='provider') ? 'asc' : 'desc'; }
+        renderAnalytics();
+      });
+    });
+    const f = document.getElementById('anvCallFilter');
+    if(f) f.addEventListener('change', ()=>{ anvFilter = f.value; renderAnalytics(); });
+    document.querySelectorAll('#anvBody .anv-call .anv-call-row').forEach(row=>{
+      row.addEventListener('click', ()=> row.parentElement.classList.toggle('open'));
+    });
   }
 
   refreshBtn.addEventListener('click', loadSessions);

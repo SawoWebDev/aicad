@@ -139,6 +139,71 @@ export async function requireRole(req, res, role) {
   return session;
 }
 
+// ── Usage telemetry aggregation ───────────────────────────────────────────
+// Reduce raw usage_events rows into the breakdowns both the global Analytics
+// dashboard (windowed) and the per-conversation Analytics drawer (session-scoped)
+// render. Low row volume (one row per AI call), so an in-process reduce is fine.
+// Returns the SAME byModel / byPhase / performance / total shapes admin.html
+// already consumes, plus a byProvider roll-up.
+export function aggregateUsage(rows) {
+  const total = { calls: 0, cost: 0, tokens: 0, input: 0, output: 0 };
+  const modelMap = {};
+  const providerMap = {};
+  const phaseMap = {};
+  let latSum = 0, latCount = 0, fastest = null, slowest = null;
+
+  for (const r of rows || []) {
+    const cost = Number(r.cost) || 0;
+    const prompt = Number(r.prompt_tokens) || 0;
+    const completion = Number(r.completion_tokens) || 0;
+    const tokens = Number(r.total_tokens) || (prompt + completion);
+    const mk = r.model || 'unknown';
+
+    total.calls += 1; total.cost += cost; total.tokens += tokens;
+    total.input += prompt; total.output += completion;
+
+    (modelMap[mk] ||= { model: mk, cost: 0, tokens: 0, prompt_tokens: 0, completion_tokens: 0, calls: 0, latSum: 0, latCount: 0, lastUsed: r.created_at });
+    const m = modelMap[mk];
+    m.cost += cost; m.tokens += tokens; m.prompt_tokens += prompt; m.completion_tokens += completion; m.calls += 1;
+    if (r.created_at > m.lastUsed) m.lastUsed = r.created_at;
+
+    const prov = r.provider || null;
+    const pvk = prov || 'unknown';
+    (providerMap[pvk] ||= { provider: prov, calls: 0, cost: 0, tokens: 0, input: 0, output: 0 });
+    const pv = providerMap[pvk];
+    pv.calls += 1; pv.cost += cost; pv.tokens += tokens; pv.input += prompt; pv.output += completion;
+
+    const pk = r.phase || 'other';
+    (phaseMap[pk] ||= { phase: pk, cost: 0, tokens: 0, calls: 0 });
+    phaseMap[pk].cost += cost; phaseMap[pk].tokens += tokens; phaseMap[pk].calls += 1;
+
+    const lat = r.latency_ms == null ? null : Number(r.latency_ms);
+    if (lat != null && isFinite(lat)) {
+      latSum += lat; latCount += 1;
+      m.latSum += lat; m.latCount += 1;
+      if (!fastest || lat < fastest.ms) fastest = { model: mk, ms: lat };
+      if (!slowest || lat > slowest.ms) slowest = { model: mk, ms: lat };
+    }
+  }
+
+  const byModel = Object.values(modelMap)
+    .map((m) => ({
+      model: m.model, calls: m.calls, cost: m.cost, tokens: m.tokens,
+      prompt_tokens: m.prompt_tokens, completion_tokens: m.completion_tokens,
+      avgLatencyMs: m.latCount ? Math.round(m.latSum / m.latCount) : null,
+      lastUsed: m.lastUsed,
+    }))
+    .sort((a, b) => b.cost - a.cost);
+
+  return {
+    total,
+    byModel,
+    byProvider: Object.values(providerMap).sort((a, b) => b.cost - a.cost),
+    byPhase: Object.values(phaseMap).sort((a, b) => b.cost - a.cost),
+    performance: { avgLatencyMs: latCount ? Math.round(latSum / latCount) : null, fastest, slowest },
+  };
+}
+
 // ── notifySales — branded HTML email with inline image + attachments ──
 const DEFAULT_APP_URL = 'https://sawoaicad.vercel.app';
 

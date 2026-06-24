@@ -814,46 +814,13 @@
 
   // ── Analytics ──
   const anBody = document.getElementById('anBody');
-  const money = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const money4 = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-  // Full per-call cost — keeps tiny costs precise (e.g. $0.0000715) instead of
-  // rounding to $0.0001, matching OpenRouter's activity view.
-  const costFull = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 7 });
-  const compact = (n) => {
-    n = Number(n) || 0;
-    if(n >= 1e9) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
-    if(n >= 1e6) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
-    if(n >= 1e3) return (n/1e3).toFixed(1).replace(/\.?0+$/,'') + 'K';
-    return String(n);
-  };
-  const shortModel = (m) => String(m || '').split('/').pop();
-
-  const fmtInt = (n) => (Number(n) || 0).toLocaleString('en-US');
-  const fmtMs = (n) => (n == null || n === '') ? '—' : fmtInt(Math.round(n)) + 'ms';
-
-  // ── Model color identity: known patterns first, deterministic fallback after ──
-  const COLOR_RULES = [
-    [/claude-opus/i, '#A855F7'], [/claude-sonnet/i, '#8B5CF6'], [/claude-haiku/i, '#EC4899'],
-    [/gemini.*image/i, '#0EA5E9'], [/gemini[-.]?3|gemini.*pro/i, '#3B82F6'], [/gemini.*flash/i, '#06B6D4'],
-    [/deepseek/i, '#92400E'], [/tencent|hy3/i, '#F97316'], [/gpt|openai/i, '#22C55E'],
-  ];
-  const FALLBACK = ['#84CC16','#EAB308','#EF4444','#F59E0B','#64748B','#14B8A6','#D946EF','#0891B2','#7C3AED','#DB2777'];
-  const _colorCache = {};
-  function colorFor(slug){
-    slug = slug || 'unknown';
-    if(_colorCache[slug]) return _colorCache[slug];
-    let c = null;
-    for(const [re, col] of COLOR_RULES){ if(re.test(slug)){ c = col; break; } }
-    if(!c){ let h = 0; for(let i = 0; i < slug.length; i++){ h = (h * 31 + slug.charCodeAt(i)) >>> 0; } c = FALLBACK[h % FALLBACK.length]; }
-    return (_colorCache[slug] = c);
-  }
-  function modelBadge(slug){ return '<span class="mbadge"><span class="dot" style="background:' + colorFor(slug) + '"></span>' + esc(shortModel(slug)) + '</span>'; }
-  function providerBadge(name){ if(!name) return '<span style="color:var(--text-dim)">—</span>'; return '<span class="mbadge"><span class="dot" style="background:' + colorFor('prov:' + name) + '"></span>' + esc(name) + '</span>'; }
-  const PHASE_LABEL = { converse:'Gather', analyze:'Finalize', image:'Image', other:'Other' };
+  // Formatting + model/provider badge helpers are shared with the per-conversation
+  // Analytics drawer (sales.html); they live on CMS so there's one copy.
+  const {
+    money, money4, costFull, compact, shortModel, fmtInt, fmtMs,
+    colorFor, modelBadge, providerBadge, speedFor, PHASE_LABEL,
+  } = CMS;
   const MODE_LABEL = (m) => (m == null || m === 'unknown') ? '—' : ('Mode ' + m);
-  // Throughput proxy: output tokens / round-trip seconds (we measure total latency,
-  // so this trends a bit under OpenRouter's generation-time figure but is comparable).
-  function speedFor(r){ const lat = Number(r.latency_ms); const out = Number(r.completion_tokens) || 0; if(!lat || lat <= 0) return null; return out / (lat / 1000); }
 
   // ── Dashboard state ──
   let anData = null, anTab = 'overview', otHidden = {}, anRange = '30';

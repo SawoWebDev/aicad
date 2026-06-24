@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import {
   serviceClient, requireSession, requireRole, notifySales, applyCors, readJsonBody,
+  aggregateUsage,
 } from './_lib.js';
 
 const TABLE = 'cad_conversations';
@@ -107,6 +108,61 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: 'Conversation not found' });
       return res.status(200).json({ session: data });
+    }
+
+    // ── AUTH (sales|admin): per-conversation usage analytics ──
+    // Aggregates usage_events for ONE session (every AI call carries the same
+    // session_id the conversation logger uses). Powers the Analytics drawer.
+    if (action === 'analytics') {
+      const session = await requireSession(req, res);
+      if (!session) return;
+      const id = (req.query.id || '').toString();
+      if (!id) return res.status(400).json({ error: 'id is required' });
+
+      const svc = serviceClient();
+      const { data: rows, error } = await svc
+        .from('usage_events')
+        .select('id, created_at, model, provider, phase, mode, prompt_tokens, completion_tokens, total_tokens, cost, latency_ms, finish_reason')
+        .eq('session_id', id)
+        .order('created_at', { ascending: true });
+      if (error) {
+        // Same hint the admin dashboard uses when the table/columns aren't migrated.
+        const missing = /relation .*usage_events.* does not exist|could not find the table|column .* does not exist/i.test(error.message || '');
+        if (missing) {
+          return res.status(200).json({
+            sessionId: id, needsMigration: true,
+            total: {}, byModel: [], byProvider: [], byPhase: [], performance: {},
+            duration: null, peak: null, events: [],
+          });
+        }
+        return res.status(500).json({ error: error.message });
+      }
+
+      const events = rows || [];
+      const agg = aggregateUsage(events);
+      // Duration = first → last call; peak = the single highest-token call.
+      let duration = null, peak = null;
+      if (events.length) {
+        const first = events[0].created_at;
+        const last = events[events.length - 1].created_at;
+        duration = { first, last, ms: Math.max(0, new Date(last) - new Date(first)) };
+        peak = events.reduce((best, r) => {
+          const t = Number(r.total_tokens) || (Number(r.prompt_tokens) || 0) + (Number(r.completion_tokens) || 0);
+          return (!best || t > best.tokens) ? { created_at: r.created_at, tokens: t } : best;
+        }, null);
+      }
+
+      return res.status(200).json({
+        sessionId: id,
+        total: agg.total,
+        duration,
+        peak,
+        byModel: agg.byModel,
+        byProvider: agg.byProvider,
+        byPhase: agg.byPhase,
+        performance: agg.performance,
+        events,
+      });
     }
 
     // ── AUTH (admin only): delete one or more sessions ──
