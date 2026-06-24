@@ -149,16 +149,17 @@
   .placeholder pre{ margin-top:14px; font-size:0.72rem; background:#20242a; color:#e8dfd3; padding:12px 16px; border-radius:8px; max-width:560px; white-space:pre-wrap; text-align:left; }
   @media (max-width:820px){ #app{ grid-template-columns:1fr; grid-template-rows:240px 1fr; } }
 
-  /* ════════════ Conversation Analytics drawer (admin-only) ════════════ */
-  #anvScrim{ position:fixed; inset:0; background:rgba(20,22,23,0.45); opacity:0; visibility:hidden; transition:opacity .28s ease; z-index:99998; }
+  /* ════════════ Conversation Analytics modal (admin-only) ════════════ */
+  #anvScrim{ position:fixed; inset:0; background:rgba(20,22,23,0.55); opacity:0; visibility:hidden; transition:opacity .25s ease; z-index:99998; }
   #anvScrim.open{ opacity:1; visibility:visible; }
   #anvDrawer{
-    position:fixed; top:0; right:0; height:100vh; width:min(580px,96vw);
-    background:var(--bg); box-shadow:-18px 0 50px rgba(20,22,23,0.25);
-    transform:translateX(100%); transition:transform .28s ease; z-index:99999;
-    display:flex; flex-direction:column; min-height:0;
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.96);
+    width:min(1000px,94vw); height:min(88vh,940px);
+    background:var(--bg); border-radius:16px; box-shadow:0 30px 90px rgba(20,22,23,0.42);
+    opacity:0; visibility:hidden; transition:opacity .25s ease, transform .25s ease; z-index:99999;
+    display:flex; flex-direction:column; min-height:0; overflow:hidden;
   }
-  #anvDrawer.open{ transform:translateX(0); }
+  #anvDrawer.open{ opacity:1; visibility:visible; transform:translate(-50%,-50%) scale(1); }
   .anv-head{
     display:flex; align-items:center; gap:12px; padding:16px 20px; flex-shrink:0;
     background:linear-gradient(120deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff;
@@ -168,7 +169,7 @@
   .anv-head .anv-sub{ font-size:0.68rem; opacity:0.85; margin-top:1px; }
   .anv-close{ margin-left:auto; background:rgba(255,255,255,0.14); border:none; color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.9rem; flex-shrink:0; transition:background .2s; }
   .anv-close:hover{ background:rgba(255,255,255,0.28); }
-  .anv-body{ flex:1; overflow-y:auto; min-height:0; padding:18px 20px 32px; }
+  .anv-body{ flex:1; overflow-y:auto; min-height:0; padding:22px 26px 34px; }
   .anv-body::-webkit-scrollbar{ width:8px; }
   .anv-body::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
   .anv-loading,.anv-empty{ padding:46px 16px; text-align:center; color:var(--text-dim); font-size:0.85rem; display:flex; flex-direction:column; align-items:center; gap:10px; }
@@ -179,7 +180,7 @@
   .anv-section-label{ font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--brown-deep); margin-bottom:11px; display:flex; align-items:center; gap:7px; }
   .anv-section-label i{ color:var(--brown-mid); }
   /* Summary cards */
-  .anv-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:11px; }
+  .anv-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
   .anv-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px 14px; border-top:3px solid var(--brown-mid); }
   .anv-card-label{ font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-dim); }
   .anv-card-big{ font-size:1.18rem; font-weight:800; color:var(--black); margin-top:5px; line-height:1.2; }
@@ -218,6 +219,8 @@
   .anv-call-row:hover{ background:var(--bg); }
   .anv-call-time{ font-size:0.7rem; color:var(--text-dim); font-weight:600; width:118px; flex-shrink:0; }
   .anv-call-phase{ font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 7px; border-radius:9px; background:rgba(166,120,83,0.13); color:var(--brown-deep); flex-shrink:0; }
+  .anv-call-prov{ display:inline-flex; align-items:center; gap:5px; font-size:0.66rem; font-weight:600; color:var(--text-dim); flex-shrink:0; }
+  .anv-call-prov .dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
   .anv-call-tok{ margin-left:auto; font-size:0.72rem; color:var(--black); font-weight:600; flex-shrink:0; }
   .anv-call-cost{ font-size:0.72rem; color:var(--brown-deep); font-weight:700; width:78px; text-align:right; flex-shrink:0; }
   .anv-call-caret{ color:var(--text-dim); font-size:0.7rem; flex-shrink:0; transition:transform .2s; }
@@ -227,7 +230,7 @@
   .anv-call-detail .kv{ font-size:0.68rem; color:var(--text-dim); }
   .anv-call-detail .kv b{ color:var(--black); font-weight:600; }
   /* Insight cards */
-  .anv-insights{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .anv-insights{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:11px; }
   .anv-insight{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--brown-mid); border-radius:10px; padding:11px 13px; }
   .anv-insight .i-ico{ font-size:1rem; }
   .anv-insight .i-label{ font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); margin-top:4px; }
@@ -275,9 +278,9 @@
 
   <div id="logLightbox"><img id="logLightboxImg" src="" alt="Generated drawing full size" /></div>
 
-  <!-- Conversation Analytics drawer (admin-only; opened from the Analytics button) -->
+  <!-- Conversation Analytics modal (admin-only; opened from the Analytics button) -->
   <div id="anvScrim"></div>
-  <aside id="anvDrawer" aria-hidden="true">
+  <aside id="anvDrawer" role="dialog" aria-modal="true" aria-label="Conversation analytics" aria-hidden="true">
     <div class="anv-head">
       <div class="anv-ico"><i class="fas fa-chart-pie"></i></div>
       <div>
@@ -704,11 +707,19 @@
     const bm = d.byModel || [];
     const totTok = t.tokens || 0;
     const mostUsed = bm.slice().sort((a,b)=>b.tokens-a.tokens)[0];
+    // Which pipeline(s) ran this conversation (pipeline_mode at call time).
+    const modes = Array.from(new Set(events.map(r=>r.mode).filter(v=>v!=null))).sort();
+    const PIPE_SUB = { 1: 'Single model', 2: '3-model pipeline' };
+    const pipeTxt = modes.length===0 ? '—'
+      : modes.length===1 ? ('Pipeline ' + modes[0])
+      : ('Mixed · ' + modes.map(m=>'P'+m).join(', '));
+    const pipeSub = modes.length===1 ? (PIPE_SUB[modes[0]] || '') : (modes.length>1 ? 'multiple pipelines' : '');
 
     let h = '<div class="anv-section" style="margin-top:4px;"><div class="anv-cards">';
     h += anvCard('Total tokens', compact(totTok), fmtInt(t.input||0) + ' in · ' + fmtInt(t.output||0) + ' out');
     h += anvCard('Total cost', money(t.cost||0), money4(t.calls ? t.cost/t.calls : 0) + ' avg/call');
     h += anvCard('AI calls', fmtInt(t.calls||0), bm.length + ' model' + (bm.length===1?'':'s'));
+    h += anvCard('Pipeline', pipeTxt, pipeSub);
     h += anvCard('Duration', fmtDur(d.duration && d.duration.ms), d.duration ? fmt(d.duration.first) : '—');
     h += anvCard('Avg tokens/call', t.calls ? compact(Math.round(totTok/t.calls)) : '—', 'across the conversation');
     h += anvCard('Most-used model', mostUsed ? modelBadge(mostUsed.model) : '—', mostUsed ? (compact(mostUsed.tokens) + ' tok') : '');
@@ -800,6 +811,7 @@
           '<span class="anv-call-time">' + esc(fmt(r.created_at)) + '</span>' +
           '<span class="anv-call-phase">' + esc(PHASE_LABEL[r.phase] || r.phase || '—') + '</span> ' +
           modelBadge(r.model) +
+          (r.provider ? '<span class="anv-call-prov"><span class="dot" style="background:' + colorFor('prov:' + r.provider) + '"></span>' + esc(r.provider) + '</span>' : '') +
           '<span class="anv-call-tok">' + compact(total) + ' tok</span>' +
           '<span class="anv-call-cost">' + costFull(r.cost) + '</span>' +
         '</div>' +
@@ -809,7 +821,7 @@
           '<span class="kv"><b>Output</b> ' + fmtInt(r.completion_tokens) + ' tok</span>' +
           '<span class="kv"><b>Latency</b> ' + fmtMs(r.latency_ms) + '</span>' +
           '<span class="kv"><b>Speed</b> ' + (sp!=null ? sp.toFixed(1) + ' tok/s' : '—') + '</span>' +
-          '<span class="kv"><b>Mode</b> ' + (r.mode!=null ? ('Mode ' + r.mode) : '—') + '</span>' +
+          '<span class="kv"><b>Pipeline</b> ' + (r.mode!=null ? ('Pipeline ' + r.mode) : '—') + '</span>' +
           '<span class="kv"><b>Finish</b> ' + esc(r.finish_reason||'—') + '</span>' +
         '</div></div>';
     }).join('');

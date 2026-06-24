@@ -124,7 +124,7 @@
     box-shadow:0 5px 13px rgba(166,120,83,0.4);
   }
   .mode-opt:hover .mode-name{ color:var(--brown-mid); }
-  /* Animated 3-step flow shown when Mode 2 is active */
+  /* Animated 3-step flow shown when Pipeline 2 is active */
   .mode-flow{ overflow:hidden; max-height:0; opacity:0; transition:max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease; }
   .mode-flow.show{ max-height:80px; opacity:1; margin-top:12px; }
   .mode-flow .mf-track{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -354,23 +354,23 @@
             <button type="button" class="mode-opt" data-mode="1" role="tab">
               <span class="mode-ico"><i class="fas fa-microchip"></i></span>
               <span class="mode-txt">
-                <span class="mode-name">Mode 1 · Single model</span>
+                <span class="mode-name">Pipeline 1 · Single model</span>
                 <span class="mode-sub">One chat model does everything</span>
               </span>
             </button>
             <button type="button" class="mode-opt" data-mode="2" role="tab">
               <span class="mode-ico"><i class="fas fa-layer-group"></i></span>
               <span class="mode-txt">
-                <span class="mode-name">Mode 2 · 3-model pipeline <span class="mode-save">save $$</span></span>
+                <span class="mode-name">Pipeline 2 · 3-model pipeline <span class="mode-save">save $$</span></span>
                 <span class="mode-sub">Cheap chat → Opus finalize → image</span>
               </span>
             </button>
           </div>
           <div class="mode-flow" id="modeFlow"></div>
-          <div class="hint">Mode 2 uses the cheap <b>Conversation model</b> for the back-and-forth requirements chat, then switches to the <b>Chat model</b> (keep this on Opus) to finalize the dataset and image prompt, then renders with the <b>Image model</b>. This avoids spending Opus tokens on basic Q&amp;A.</div>
+          <div class="hint">Pipeline 2 uses the cheap <b>Conversation model</b> for the back-and-forth requirements chat, then switches to the <b>Chat model</b> (keep this on Opus) to finalize the dataset and image prompt, then renders with the <b>Image model</b>. This avoids spending Opus tokens on basic Q&amp;A.</div>
 
           <div id="convoModelWrap">
-            <label class="field-label">Conversation model <span style="color:var(--text-dim);font-weight:600;text-transform:none;letter-spacing:0;">(Mode 2 only — the cheap info-gathering model)</span></label>
+            <label class="field-label">Conversation model <span style="color:var(--text-dim);font-weight:600;text-transform:none;letter-spacing:0;">(Pipeline 2 only — the cheap info-gathering model)</span></label>
             <select id="sConvoModel">
               <option value="anthropic/claude-haiku-4.5">Claude Haiku 4.5 — anthropic/claude-haiku-4.5 (Fast · cheap · best at following the format rules · $)</option>
               <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite — google/gemini-2.5-flash-lite (Fastest · very cheap · $)</option>
@@ -700,7 +700,7 @@
   });
 
   // ── Pipeline-mode sliding switch ──
-  // The conversation model only applies in Mode 2, and the chat model is the
+  // The conversation model only applies in Pipeline 2, and the chat model is the
   // "finalize" model there. The switch drives the rest of the form.
   const modeSwitch = document.getElementById('modeSwitch');
   const modeFlow = document.getElementById('modeFlow');
@@ -820,7 +820,7 @@
     money, money4, costFull, compact, shortModel, fmtInt, fmtMs,
     colorFor, modelBadge, providerBadge, speedFor, PHASE_LABEL,
   } = CMS;
-  const MODE_LABEL = (m) => (m == null || m === 'unknown') ? '—' : ('Mode ' + m);
+  const MODE_LABEL = (m) => (m == null || m === 'unknown') ? '—' : ('Pipeline ' + m);
 
   // ── Dashboard state ──
   let anData = null, anTab = 'overview', otHidden = {}, anRange = '30';
@@ -868,7 +868,7 @@
     const byMode = anData.byMode || [], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
     const m2pct = totMode ? Math.round((m2?m2.calls:0)/totMode*100) : 0;
     h += '<div class="stat-grid">';
-    h += card('Messages', fmtInt(g.calls), rangeLabel() + (m2pct?(' · ' + m2pct + '% Mode 2'):''), '#AF8564');
+    h += card('Messages', fmtInt(g.calls), rangeLabel() + (m2pct?(' · ' + m2pct + '% Pipeline 2'):''), '#AF8564');
     h += card('Total tokens', compact(g.tokens), fmtInt(g.input) + ' in · ' + fmtInt(g.output) + ' out', '#3B82F6');
     h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E');
     h += card('Most used model', modelBadge(mostUsed.model), fmtInt(mostUsed.calls) + ' calls · ' + compact(mostUsed.tokens) + ' tok', colorFor(mostUsed.model));
@@ -957,7 +957,7 @@
     const leg = '<div class="radar-legend">' + models.map(m => '<span class="rl"><span class="sw" style="background:'+colorFor(m.model)+'"></span>'+esc(shortModel(m.model))+'</span>').join('') + '</div>';
     return '<div class="radar-wrap">' + svg + leg + '</div>';
   }
-  // Mode 1 vs Mode 2 side-by-side: consumption, spend, and which models ran under each.
+  // Pipeline 1 vs Pipeline 2 side-by-side: consumption, spend, and which models ran under each.
   function modeCompare(){
     const mb = anData.modeBreakdown || {};
     const m1 = mb['1'], m2 = mb['2'];
@@ -981,14 +981,14 @@
     const avg1 = k1?c1/k1:0, avg2 = k2?c2/k2:0;
     let verdict = '';
     if(k1 && k2){
-      const cheaper = avg2 <= avg1 ? 'Mode 2' : 'Mode 1';
+      const cheaper = avg2 <= avg1 ? 'Pipeline 2' : 'Pipeline 1';
       const pct = avg1 && avg2 ? Math.round(Math.abs(avg1-avg2)/Math.max(avg1,avg2)*100) : 0;
-      verdict = '<b>Mode 1</b> ran '+fmtInt(k1)+' calls at '+money4(avg1)+'/msg; <b>Mode 2</b> ran '+fmtInt(k2)+' calls at '+money4(avg2)+'/msg. ' +
-        '<b>'+cheaper+'</b> is cheaper per message'+(pct?(' by ~'+pct+'%'):'')+'. Mode 2 splits work across a cheap gather model plus the finalize/image models, so its per-call average reflects that mix.';
-    } else if(k2 && !k1){ verdict = 'All recorded calls ran in <b>Mode 2</b> (cheap gather → finalize → image). Switch to Mode 1 to compare a single-model pipeline.'; }
-    else if(k1 && !k2){ verdict = 'All recorded calls ran in <b>Mode 1</b> (one model does everything). Switch to Mode 2 to compare the cost-split pipeline.'; }
-    return '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-code-compare"></i> Mode 1 vs Mode 2</div>' +
-      '<div class="mode-grid">' + col(m1,'Mode 1 · Single model','#C99A2C') + col(m2,'Mode 2 · 3-model pipeline','#8B5CF6') + '</div>' +
+      verdict = '<b>Pipeline 1</b> ran '+fmtInt(k1)+' calls at '+money4(avg1)+'/msg; <b>Pipeline 2</b> ran '+fmtInt(k2)+' calls at '+money4(avg2)+'/msg. ' +
+        '<b>'+cheaper+'</b> is cheaper per message'+(pct?(' by ~'+pct+'%'):'')+'. Pipeline 2 splits work across a cheap gather model plus the finalize/image models, so its per-call average reflects that mix.';
+    } else if(k2 && !k1){ verdict = 'All recorded calls ran in <b>Pipeline 2</b> (cheap gather → finalize → image). Switch to Pipeline 1 to compare a single-model pipeline.'; }
+    else if(k1 && !k2){ verdict = 'All recorded calls ran in <b>Pipeline 1</b> (one model does everything). Switch to Pipeline 2 to compare the cost-split pipeline.'; }
+    return '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-code-compare"></i> Pipeline 1 vs Pipeline 2</div>' +
+      '<div class="mode-grid">' + col(m1,'Pipeline 1 · Single model','#C99A2C') + col(m2,'Pipeline 2 · 3-model pipeline','#8B5CF6') + '</div>' +
       (verdict ? '<p class="sum-para" style="margin-top:16px;font-size:0.84rem;">'+verdict+'</p>' : '') + '</div>';
   }
   function tabComparison(){
@@ -1035,7 +1035,7 @@
     const arrow = k => logSort.key===k ? (logSort.dir==='asc'?'▲':'▼') : '';
     let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="log-toolbar">' +
       '<select id="lgModel"><option value="">All models</option>' + models.map(mo=>'<option value="'+esc(mo)+'"'+(logFilter.model===mo?' selected':'')+'>'+esc(shortModel(mo))+'</option>').join('') + '</select>' +
-      '<select id="lgMode"><option value="">All modes</option><option value="1"'+(logFilter.mode==='1'?' selected':'')+'>Mode 1</option><option value="2"'+(logFilter.mode==='2'?' selected':'')+'>Mode 2</option></select>' +
+      '<select id="lgMode"><option value="">All pipelines</option><option value="1"'+(logFilter.mode==='1'?' selected':'')+'>Pipeline 1</option><option value="2"'+(logFilter.mode==='2'?' selected':'')+'>Pipeline 2</option></select>' +
       '<input id="lgSession" type="text" placeholder="session id…" value="'+esc(logFilter.session)+'"/>' +
       '<span class="spacer"></span><button class="exp-btn" id="lgCsv"><i class="fas fa-file-csv"></i> CSV</button><button class="exp-btn" id="lgJson"><i class="fas fa-file-code"></i> JSON</button></div>';
     h += '<div style="overflow-x:auto;"><table class="an-table sortable"><thead><tr>' + cols.map(([k,l])=>'<th data-sort="'+k+'" class="'+(numCols.includes(k)?'num':'')+'">'+l+' <span class="ar">'+arrow(k)+'</span></th>').join('') + '</tr></thead><tbody>';
@@ -1046,7 +1046,7 @@
       '<td class="num">'+costFull(r.cost)+'</td><td class="num">'+(sp!=null?(sp.toFixed(1)+' <span class="u">tok/s</span>'):'—')+'</td></tr>' +
       '<tr class="log-detail hidden" data-detail="'+idx+'"><td colspan="7">' +
         '<span class="kv"><b>phase</b> '+esc(PHASE_LABEL[r.phase]||r.phase||'—')+'</span>' +
-        '<span class="kv"><b>mode</b> '+esc(MODE_LABEL(r.mode))+'</span>' +
+        '<span class="kv"><b>pipeline</b> '+esc(MODE_LABEL(r.mode))+'</span>' +
         '<span class="kv"><b>total</b> '+fmtInt(r.total_tokens)+' tok</span>' +
         '<span class="kv"><b>latency</b> '+fmtMs(r.latency_ms)+'</span>' +
         '<span class="kv"><b>finish</b> '+esc(r.finish_reason||'—')+'</span>' +
@@ -1077,7 +1077,7 @@
     let para = 'Over the selected window ('+rangeLabel().toLowerCase()+'), <b>'+esc(shortModel(mostUsed.model))+'</b> was the most-used model, handling <b>'+mostPct+'%</b> of '+fmtInt(g.calls)+' calls and <b>'+compact(mostUsed.tokens)+'</b> tokens at <b>'+costFull(mostUsed.cost)+'</b>. ';
     para += 'The most cost-efficient model was <b>'+esc(shortModel(cheapest.model))+'</b> at <b>'+money4(per1k(cheapest))+'</b> per 1K tokens. ';
     if(fastest) para += 'Average model latency was <b>'+fmtMs(perf.avgLatencyMs)+'</b>, fastest <b>'+esc(shortModel(fastest.model))+'</b> ('+fmtMs(fastest.avgLatencyMs)+'). ';
-    para += 'Mode 2 accounted for <b>'+m2pct+'%</b> of tagged calls. Total spend: <b>'+money(g.cost)+'</b> across '+fmtInt(g.calls)+' calls.';
+    para += 'Pipeline 2 accounted for <b>'+m2pct+'%</b> of tagged calls. Total spend: <b>'+money(g.cost)+'</b> across '+fmtInt(g.calls)+' calls.';
     let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-brain"></i> Auto insight</div><p class="sum-para">'+para+'</p>';
     h += '<div class="insight-grid">' +
       insight('🏆','#A855F7','Most used', modelBadge(mostUsed.model)) +

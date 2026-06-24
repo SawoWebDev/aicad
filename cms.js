@@ -8,10 +8,19 @@ window.CMS = (function(){
     d.textContent = s == null ? '' : String(s);
     return d.innerHTML;
   }
+  // App-wide date display: "Jan 24, 2026, 10:27 AM" (medium date + short time).
   function fmt(ts){
     if(!ts) return '—';
     const d = new Date(ts);
-    return isNaN(d) ? ts : d.toLocaleString();
+    return isNaN(d) ? ts : d.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  }
+  // Date only, no time: "Jan 24, 2026".
+  function fmtDate(ts){
+    if(!ts) return '—';
+    const d = new Date(ts);
+    return isNaN(d) ? ts : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
   async function session(){
     try{ return await fetch('/api/auth?action=session').then(r=>r.json()); }
@@ -108,7 +117,7 @@ window.CMS = (function(){
   function speedFor(r){ const lat = Number(r.latency_ms); const out = Number(r.completion_tokens) || 0; if(!lat || lat <= 0) return null; return out / (lat / 1000); }
 
   return {
-    esc, fmt, session, get, send, logout, toast,
+    esc, fmt, fmtDate, session, get, send, logout, toast,
     money, money4, costFull, compact, shortModel, fmtInt, fmtMs,
     colorFor, modelBadge, providerBadge, speedFor, PHASE_LABEL,
   };
