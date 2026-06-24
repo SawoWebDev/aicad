@@ -102,11 +102,40 @@
   .dh-subject{ font-size:0.78rem; color:var(--text-dim); line-height:1.3; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .dh-actions{ margin-left:auto; display:flex; align-items:center; gap:10px; flex-shrink:0; }
   .btn.active{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
-  .dh-meta-panel{ width:100%; margin-top:12px; padding:12px 16px; background:var(--bg); border:1px solid var(--line); border-radius:10px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px 20px; }
-  .dh-meta-panel .m{ font-size:0.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; }
-  .dh-meta-panel .m b{ display:block; margin-top:3px; font-size:0.84rem; font-weight:600; color:var(--black); text-transform:none; letter-spacing:0; word-break:break-word; }
   .dh-sendresult{ width:100%; margin-top:10px; font-size:0.8rem; font-weight:600; color:#4A9D4A; display:flex; align-items:center; gap:8px; }
   .dh-sendresult.err{ color:#C9302C; }
+  /* Hamburger menu in the detail header — collapses the secondary actions (Copy
+     link / Analytics / Details) so the header stays clean. Mirrors admin.html's
+     row-action dropdown pattern. */
+  .dh-dropdown{ position:relative; display:inline-block; }
+  .dh-burger{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; padding:0; gap:0; }
+  .dh-menu{ position:absolute; right:0; top:calc(100% + 6px); min-width:186px; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 30px rgba(139,94,60,0.20); z-index:120; overflow:hidden; padding:5px; }
+  .dh-menu.hidden{ display:none; }
+  .dh-menu button{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; background:transparent; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.76rem; padding:9px 12px; border-radius:7px; cursor:pointer; }
+  .dh-menu button i{ width:15px; text-align:center; color:var(--brown-mid); }
+  .dh-menu button:hover{ background:var(--bg); }
+  /* Conversation details modal — replaces the old inline meta panel. Reuses the
+     analytics modal's centered-overlay look, sized smaller for a metadata card. */
+  #dtlScrim{ position:fixed; inset:0; background:rgba(20,22,23,0.55); opacity:0; visibility:hidden; transition:opacity .22s ease; z-index:99998; }
+  #dtlScrim.open{ opacity:1; visibility:visible; }
+  #dtlModal{
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.96);
+    width:min(620px,94vw); max-height:88vh; background:var(--bg); border-radius:16px;
+    box-shadow:0 30px 90px rgba(20,22,23,0.42); opacity:0; visibility:hidden;
+    transition:opacity .22s ease, transform .22s ease; z-index:99999;
+    display:flex; flex-direction:column; min-height:0; overflow:hidden;
+  }
+  #dtlModal.open{ opacity:1; visibility:visible; transform:translate(-50%,-50%) scale(1); }
+  .dtl-head{ display:flex; align-items:center; gap:12px; padding:16px 20px; flex-shrink:0; background:linear-gradient(120deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; }
+  .dtl-head .dtl-ico{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.16); font-size:0.95rem; flex-shrink:0; }
+  .dtl-head h3{ margin:0; font-size:0.95rem; font-weight:700; letter-spacing:0.3px; }
+  .dtl-head .dtl-sub{ font-size:0.68rem; opacity:0.85; margin-top:1px; }
+  .dtl-close{ margin-left:auto; background:rgba(255,255,255,0.14); border:none; color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.9rem; flex-shrink:0; transition:background .2s; }
+  .dtl-close:hover{ background:rgba(255,255,255,0.28); }
+  .dtl-body{ padding:20px 22px 24px; overflow-y:auto; min-height:0; }
+  .dtl-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px 22px; }
+  .dtl-grid .m{ font-size:0.66rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; }
+  .dtl-grid .m b{ display:block; margin-top:4px; font-size:0.86rem; font-weight:600; color:var(--black); text-transform:none; letter-spacing:0; word-break:break-word; }
   /* txt block toolbar (toggle + copy) */
   .txtblock-head{ display:flex; align-items:center; gap:10px; }
   .txtblock-copy{ display:inline-flex; align-items:center; gap:7px; background:transparent; border:1px solid var(--line); border-radius:8px; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.74rem; letter-spacing:0.04em; text-transform:uppercase; padding:7px 13px; cursor:pointer; }
@@ -154,7 +183,7 @@
   #anvScrim.open{ opacity:1; visibility:visible; }
   #anvDrawer{
     position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.96);
-    width:min(1360px,96vw); height:min(90vh,980px);
+    width:min(1360px,96vw); height:96vh; max-height:none;
     background:var(--bg); border-radius:16px; box-shadow:0 30px 90px rgba(20,22,23,0.42);
     opacity:0; visibility:hidden; transition:opacity .25s ease, transform .25s ease; z-index:99999;
     display:flex; flex-direction:column; min-height:0; overflow:hidden;
@@ -185,8 +214,10 @@
   /* Summary cards */
   .anv-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
   .anv-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px 14px; border-top:3px solid var(--brown-mid); }
+  .anv-card-head{ display:flex; align-items:center; gap:8px; }
+  .anv-card-ico{ width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:0.74rem; flex-shrink:0; }
   .anv-card-label{ font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-dim); }
-  .anv-card-big{ font-size:1.18rem; font-weight:800; color:var(--black); margin-top:5px; line-height:1.2; }
+  .anv-card-big{ font-size:1.18rem; font-weight:800; color:var(--black); margin-top:7px; line-height:1.2; }
   .anv-card-sub{ font-size:0.66rem; color:var(--text-dim); margin-top:3px; }
   /* Model / provider badge (shared visual with admin dashboard) */
   .mbadge{ display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--black); }
@@ -225,6 +256,9 @@
   .anv-calltable tbody tr:last-child td{ border-bottom:none; }
   .anv-calltable tbody tr:hover td{ background:var(--bg); }
   .anv-calltable td.cost{ color:var(--brown-deep); font-weight:700; }
+  /* Cost emphasis: dearest call red, second-dearest orange. */
+  .anv-calltable td.cost-hi{ color:#C9302C; font-weight:800; }
+  .anv-calltable td.cost-2nd{ color:#E0892E; font-weight:800; }
   .anv-calltable .anv-call-phase{ display:inline-block; }
   .anv-call-phase{ font-size:0.56rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 7px; border-radius:9px; background:rgba(166,120,83,0.13); color:var(--brown-deep); white-space:nowrap; }
   .anv-prov-cell{ display:inline-flex; align-items:center; gap:6px; }
@@ -232,11 +266,19 @@
   /* Compare conversations */
   .anv-cmp-pick{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
   .anv-cmp-pick-list{ max-height:260px; overflow-y:auto; margin:10px 0 14px; display:flex; flex-direction:column; gap:2px; }
-  .anv-cmp-opt{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:0.78rem; }
+  .anv-cmp-opt{ display:flex; align-items:flex-start; gap:10px; padding:9px 10px; border-radius:8px; cursor:pointer; font-size:0.78rem; }
   .anv-cmp-opt:hover{ background:var(--bg); }
-  .anv-cmp-opt input{ flex-shrink:0; }
+  .anv-cmp-opt input{ flex-shrink:0; margin-top:3px; }
+  .anv-cmp-optmain{ display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
+  .anv-cmp-optline{ display:flex; align-items:baseline; gap:8px; min-width:0; }
   .anv-cmp-opt .nm{ font-weight:600; color:var(--black); flex-shrink:0; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .anv-cmp-opt .sn{ color:var(--text-dim); font-size:0.7rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .anv-cmp-optmeta{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .anv-cmp-meta-lbl{ font-size:0.6rem; font-weight:700; color:var(--text-dim); display:inline-flex; align-items:center; gap:4px; }
+  .anv-cmp-chip{ font-size:0.59rem; font-weight:700; letter-spacing:0.02em; padding:2px 7px; border-radius:9px; background:rgba(166,120,83,0.13); color:var(--brown-deep); white-space:nowrap; }
+  .anv-cmp-chip.muted{ background:transparent; color:var(--text-dim); font-weight:600; border:1px dashed var(--line); }
+  .anv-cmp-chip.pipe{ background:rgba(139,92,246,0.14); color:#7C4DD6; }
+  .anv-cmp-chip.pipe.p1{ background:rgba(201,154,44,0.16); color:#9A7411; }
   .anv-cmp-opt.self{ background:rgba(166,120,83,0.08); }
   .anv-btn{ background:var(--brown-deep); border:none; color:#fff; font-family:'Montserrat',sans-serif; font-weight:700; font-size:0.76rem; padding:9px 16px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
   .anv-btn:hover{ background:var(--brown-mid); }
@@ -314,6 +356,20 @@
     <div class="anv-body" id="anvBody"></div>
   </aside>
 
+  <!-- Conversation details modal (opened from the header hamburger menu) -->
+  <div id="dtlScrim"></div>
+  <aside id="dtlModal" role="dialog" aria-modal="true" aria-label="Conversation details" aria-hidden="true">
+    <div class="dtl-head">
+      <div class="dtl-ico"><i class="fas fa-circle-info"></i></div>
+      <div>
+        <h3>Conversation details</h3>
+        <div class="dtl-sub">Session &amp; lead contact info</div>
+      </div>
+      <button class="dtl-close" id="dtlClose" title="Close"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="dtl-body"><div class="dtl-grid" id="dtlGrid"></div></div>
+  </aside>
+
 <script src="/cms.js"></script>
 <script>
 (function(){
@@ -378,6 +434,28 @@
   function friendlyModel(slug){
     if(!slug) return '';
     return MODEL_NAMES[slug] || String(slug).split('/').pop();
+  }
+  // Distinct model slugs recorded on a conversation's assistant replies. Lets the
+  // compare picker preview which models a conversation used without an extra
+  // fetch (the transcript already carries m.model on assistant messages).
+  function modelsInSession(s){
+    const set = new Set();
+    (Array.isArray(s.messages) ? s.messages : []).forEach(m => {
+      if(m && m.role !== 'user' && m.model) set.add(m.model);
+    });
+    return Array.from(set);
+  }
+
+  // Pipeline chip for the compare picker — derived from the per-call modes the
+  // list endpoint attaches to each session (usage_events.mode). Pipeline 2 is the
+  // 3-model split; Pipeline 1 is the single-model path.
+  function pipelineChip(modes){
+    if(!Array.isArray(modes) || !modes.length) return '';
+    if(modes.length > 1) return '<span class="anv-cmp-chip pipe"><i class="fas fa-layer-group"></i> Mixed pipelines</span>';
+    const m = Number(modes[0]);
+    return m === 2
+      ? '<span class="anv-cmp-chip pipe"><i class="fas fa-layer-group"></i> Pipeline 2 · 3-model</span>'
+      : '<span class="anv-cmp-chip pipe p1"><i class="fas fa-microchip"></i> Pipeline 1 · single</span>';
   }
 
   // Deep-link target (set when opened via a conversation permalink).
@@ -524,15 +602,17 @@
           '<div class="dh-subject">' + esc(firstUserMsg(s)) + '</div>' +
         '</div>' +
         '<div class="dh-actions">' +
-          '<button class="btn copy-link" id="copyLink"><i class="fas fa-link"></i> Copy link</button>' +
           '<button class="btn send-sales" id="sendSales"><i class="fas fa-paper-plane"></i> ' +
             (s.sent_to_sales ? 'Resend to sales' : 'Send to sales') + '</button>' +
-          (isAdmin ? '<button class="btn" id="analyticsBtn"><i class="fas fa-chart-pie"></i> Analytics</button>' : '') +
-          '<button class="btn" id="detailsBtn"><i class="fas fa-circle-info"></i> Details</button>' +
+          '<div class="dh-dropdown">' +
+            '<button class="btn dh-burger" id="dhBurger" title="More actions" aria-label="More actions"><i class="fas fa-bars"></i></button>' +
+            '<div class="dh-menu hidden" id="dhMenu">' +
+              '<button id="copyLink"><i class="fas fa-link"></i> Copy link</button>' +
+              (isAdmin ? '<button id="analyticsBtn"><i class="fas fa-chart-pie"></i> Analytics</button>' : '') +
+              '<button id="detailsBtn"><i class="fas fa-circle-info"></i> Details</button>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="dh-meta-panel" id="metaPanel" style="display:none;">' +
-        metaRows.map(function(r){ return '<div class="m">' + r[0] + '<b>' + r[1] + '</b></div>'; }).join('') +
       '</div>' +
       '<div class="dh-sendresult" id="sendResult" style="display:none;"></div>';
 
@@ -568,26 +648,36 @@
     }
     detailBody.innerHTML = html;
 
+    // Hamburger menu: Copy link / Analytics / Details. Toggle on the burger;
+    // close on outside click or after picking an item.
+    const dhBurger = document.getElementById('dhBurger');
+    const dhMenu = document.getElementById('dhMenu');
+    const closeDhMenu = () => { if(dhMenu) dhMenu.classList.add('hidden'); };
+    if(dhBurger) dhBurger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dhMenu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', closeDhMenu);
+
     const copyBtn = document.getElementById('copyLink');
     if(copyBtn) copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(permalink).then(() => {
         copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
-        setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-link"></i> Copy link'; }, 1500);
+        setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-link"></i> Copy link'; closeDhMenu(); }, 1100);
       });
     });
 
     // Analytics drawer (admin-only): per-conversation usage/cost breakdown.
     const analyticsBtn = document.getElementById('analyticsBtn');
-    if(analyticsBtn) analyticsBtn.addEventListener('click', () => openAnalytics(s.session_id, convName(s)));
+    if(analyticsBtn) analyticsBtn.addEventListener('click', () => { closeDhMenu(); openAnalytics(s.session_id, convName(s)); });
 
-    // Details toggle: show/hide the session + contact metadata panel.
+    // Details: open the metadata modal (rebuilt from metaRows each time).
     const detailsBtn = document.getElementById('detailsBtn');
     if(detailsBtn) detailsBtn.addEventListener('click', () => {
-      const panel = document.getElementById('metaPanel');
-      if(!panel) return;
-      const show = panel.style.display === 'none';
-      panel.style.display = show ? 'grid' : 'none';
-      detailsBtn.classList.toggle('active', show);
+      closeDhMenu();
+      const grid = document.getElementById('dtlGrid');
+      if(grid) grid.innerHTML = metaRows.map(function(r){ return '<div class="m">' + r[0] + '<b>' + r[1] + '</b></div>'; }).join('');
+      openDetailsModal();
     });
 
     // Manual sales handoff: flags the session and fires the same server-side
@@ -661,6 +751,16 @@
         '<h3>' + esc(title) + '</h3><pre>' + esc(detail) + '</pre></div>';
   }
 
+  // ════════════ Conversation details modal ════════════
+  const dtlScrim = document.getElementById('dtlScrim');
+  const dtlModal = document.getElementById('dtlModal');
+  const dtlClose = document.getElementById('dtlClose');
+  function openDetailsModal(){ dtlScrim.classList.add('open'); dtlModal.classList.add('open'); dtlModal.setAttribute('aria-hidden','false'); }
+  function closeDetailsModal(){ dtlScrim.classList.remove('open'); dtlModal.classList.remove('open'); dtlModal.setAttribute('aria-hidden','true'); }
+  dtlClose.addEventListener('click', closeDetailsModal);
+  dtlScrim.addEventListener('click', closeDetailsModal);
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && dtlModal.classList.contains('open')) closeDetailsModal(); });
+
   // ════════════ Conversation Analytics drawer (admin-only) ════════════
   const anvScrim = document.getElementById('anvScrim');
   const anvDrawer = document.getElementById('anvDrawer');
@@ -713,8 +813,12 @@
     (anvData.events || []).forEach(r => { if(r.model === model && r.provider) set.add(r.provider); });
     return Array.from(set);
   }
-  function anvCard(label, big, sub){
-    return '<div class="anv-card"><div class="anv-card-label">' + label + '</div>' +
+  // Per-card accent: [solid color, translucent icon-chip bg, FontAwesome icon].
+  function anvCard(label, big, sub, accent){
+    const a = accent || ['var(--brown-mid)', 'rgba(166,120,83,0.14)', 'fa-circle'];
+    const ico = '<span class="anv-card-ico" style="background:' + a[1] + ';color:' + a[0] + ';"><i class="fas ' + a[2] + '"></i></span>';
+    return '<div class="anv-card" style="border-top-color:' + a[0] + ';">' +
+      '<div class="anv-card-head">' + ico + '<div class="anv-card-label">' + label + '</div></div>' +
       '<div class="anv-card-big">' + big + '</div><div class="anv-card-sub">' + (sub || '') + '</div></div>';
   }
 
@@ -744,14 +848,14 @@
     const pipeSub = modes.length===1 ? (PIPE_SUB[modes[0]] || '') : (modes.length>1 ? 'multiple pipelines' : '');
 
     let h = '<div class="anv-section" style="margin-top:4px;"><div class="anv-cards">';
-    h += anvCard('Total tokens', compact(totTok), fmtInt(t.input||0) + ' in · ' + fmtInt(t.output||0) + ' out');
-    h += anvCard('Total cost', money(t.cost||0), money4(t.calls ? t.cost/t.calls : 0) + ' avg/call');
-    h += anvCard('AI calls', fmtInt(t.calls||0), bm.length + ' model' + (bm.length===1?'':'s'));
-    h += anvCard('Pipeline', pipeTxt, pipeSub);
-    h += anvCard('Duration', fmtDur(d.duration && d.duration.ms), d.duration ? fmt(d.duration.first) : '—');
-    h += anvCard('Avg tokens/call', t.calls ? compact(Math.round(totTok/t.calls)) : '—', 'across the conversation');
-    h += anvCard('Most-used model', mostUsed ? modelBadge(mostUsed.model) : '—', mostUsed ? (compact(mostUsed.tokens) + ' tok') : '');
-    h += anvCard('Peak call', d.peak ? compact(d.peak.tokens) + ' tok' : '—', d.peak ? fmt(d.peak.created_at) : '');
+    h += anvCard('Total tokens', compact(totTok), fmtInt(t.input||0) + ' in · ' + fmtInt(t.output||0) + ' out', ['#3B82F6','rgba(59,130,246,0.13)','fa-coins']);
+    h += anvCard('Total cost', money(t.cost||0), money4(t.calls ? t.cost/t.calls : 0) + ' avg/call', ['#C99A2C','rgba(201,154,44,0.16)','fa-sack-dollar']);
+    h += anvCard('AI calls', fmtInt(t.calls||0), bm.length + ' model' + (bm.length===1?'':'s'), ['#22C55E','rgba(34,197,94,0.14)','fa-comments']);
+    h += anvCard('Pipeline', pipeTxt, pipeSub, ['#8B5CF6','rgba(139,92,246,0.14)','fa-layer-group']);
+    h += anvCard('Duration', fmtDur(d.duration && d.duration.ms), d.duration ? fmt(d.duration.first) : '—', ['#0EA5A4','rgba(14,165,164,0.14)','fa-clock']);
+    h += anvCard('Avg tokens/call', t.calls ? compact(Math.round(totTok/t.calls)) : '—', 'across the conversation', ['#E0892E','rgba(224,137,46,0.14)','fa-gauge']);
+    h += anvCard('Most-used model', mostUsed ? modelBadge(mostUsed.model) : '—', mostUsed ? (compact(mostUsed.tokens) + ' tok') : '', ['#A67853','rgba(166,120,83,0.16)','fa-star']);
+    h += anvCard('Peak call', d.peak ? compact(d.peak.tokens) + ' tok' : '—', d.peak ? fmt(d.peak.created_at) : '', ['#E0526D','rgba(224,82,109,0.14)','fa-arrow-trend-up']);
     h += '</div></div>';
 
     h += modelTable() + tokenFlow() + drillDown() + insightsSection();
@@ -835,6 +939,9 @@
       '<span style="font-size:0.68rem;color:var(--text-dim);margin-left:auto;">' + shown.length + (capped ? (' of ' + rows.length) : '') + ' call' + (rows.length===1?'':'s') + '</span></div>';
     const cols = ['Time','Phase','Model','Provider','Input','Output','Total','Latency','Speed','Pipeline','Finish','Cost'];
     const numCol = { Input:1, Output:1, Total:1, Latency:1, Speed:1, Cost:1 };
+    // Highlight the two most expensive calls shown: dearest red, runner-up orange.
+    const costRanks = Array.from(new Set(shown.map(r=>Number(r.cost)||0).filter(c=>c>0))).sort((a,b)=>b-a);
+    const costHi = costRanks[0], cost2nd = costRanks[1];
     h += '<div style="overflow-x:auto;"><table class="anv-calltable"><thead><tr>' +
       cols.map(c=>'<th' + (numCol[c]?' class="num"':'') + '>' + c + '</th>').join('') +
       '</tr></thead><tbody>';
@@ -844,6 +951,8 @@
       const provCell = r.provider
         ? '<span class="anv-prov-cell"><span class="dot" style="background:' + colorFor('prov:' + r.provider) + '"></span>' + esc(r.provider) + '</span>'
         : '<span style="color:var(--text-dim)">—</span>';
+      const rc = Number(r.cost)||0;
+      const costCls = (rc>0 && rc===costHi) ? ' cost-hi' : (rc>0 && rc===cost2nd) ? ' cost-2nd' : '';
       return '<tr>' +
         '<td>' + esc(fmt(r.created_at)) + '</td>' +
         '<td><span class="anv-call-phase">' + esc(PHASE_LABEL[r.phase] || r.phase || '—') + '</span></td>' +
@@ -856,7 +965,7 @@
         '<td class="num">' + (sp!=null ? sp.toFixed(1) + ' tok/s' : '—') + '</td>' +
         '<td>' + (r.mode!=null ? ('Pipeline ' + r.mode) : '—') + '</td>' +
         '<td>' + esc(r.finish_reason||'—') + '</td>' +
-        '<td class="num cost">' + costFull(r.cost) + '</td>' +
+        '<td class="num cost' + costCls + '">' + costFull(r.cost) + '</td>' +
         '</tr>';
     }).join('');
     h += '</tbody></table></div></div>';
@@ -874,14 +983,14 @@
     const withTok = bm.filter(m=>m.tokens>0);
     const cheapest = withTok.length ? withTok.reduce((a,b)=>per1k(b)<per1k(a)?b:a) : null;
     const effRatio = t.input ? (t.output/t.input) : null;
-    const ins = (ico,label,val)=>'<div class="anv-insight"><div class="i-ico">' + ico + '</div><div class="i-label">' + label + '</div><div class="i-val">' + val + '</div></div>';
+    const ins = (icon,color,label,val)=>'<div class="anv-insight" style="border-left-color:' + color + ';"><div class="i-ico" style="color:' + color + ';"><i class="fas ' + icon + '"></i></div><div class="i-label">' + label + '</div><div class="i-val">' + val + '</div></div>';
     let h = '<div class="anv-section"><div class="anv-section-label"><i class="fas fa-lightbulb"></i> Cost &amp; performance</div><div class="anv-insights">';
-    h += ins('💰','Most expensive call', dearestCall ? (costFull(dearestCall.cost) + ' · ' + esc(shortModel(dearestCall.model))) : '—');
-    h += ins('💸','Most efficient model', cheapest ? (esc(shortModel(cheapest.model)) + ' · ' + money4(per1k(cheapest)) + '/1K') : '—');
-    h += ins('⚖️','Efficiency ratio', effRatio!=null ? (effRatio.toFixed(2) + ' out/in') : '—');
-    h += ins('⚡','Avg latency', perf.avgLatencyMs!=null ? fmtMs(perf.avgLatencyMs) : 'not recorded');
-    h += ins('🚀','Fastest call', perf.fastest ? (esc(shortModel(perf.fastest.model)) + ' · ' + fmtMs(perf.fastest.ms)) : '—');
-    h += ins('🐢','Slowest call', perf.slowest ? (esc(shortModel(perf.slowest.model)) + ' · ' + fmtMs(perf.slowest.ms)) : '—');
+    h += ins('fa-sack-dollar','#C9302C','Most expensive call', dearestCall ? (costFull(dearestCall.cost) + ' · ' + esc(shortModel(dearestCall.model))) : '—');
+    h += ins('fa-money-bill-trend-up','#22C55E','Most efficient model', cheapest ? (esc(shortModel(cheapest.model)) + ' · ' + money4(per1k(cheapest)) + '/1K') : '—');
+    h += ins('fa-scale-balanced','#8B5CF6','Efficiency ratio', effRatio!=null ? (effRatio.toFixed(2) + ' out/in') : '—');
+    h += ins('fa-bolt','#E0892E','Avg latency', perf.avgLatencyMs!=null ? fmtMs(perf.avgLatencyMs) : 'not recorded');
+    h += ins('fa-gauge-high','#3B82F6','Fastest call', perf.fastest ? (esc(shortModel(perf.fastest.model)) + ' · ' + fmtMs(perf.fastest.ms)) : '—');
+    h += ins('fa-hourglass-half','#0EA5A4','Slowest call', perf.slowest ? (esc(shortModel(perf.slowest.model)) + ' · ' + fmtMs(perf.slowest.ms)) : '—');
     h += '</div></div>';
     return h;
   }
@@ -914,16 +1023,24 @@
     const opts = items.map(s=>{
       const id = s.session_id;
       const isSelf = id === anvSessionId;
+      const models = modelsInSession(s);
+      const chips = models.length
+        ? models.map(m=>'<span class="anv-cmp-chip">' + esc(friendlyModel(m)) + '</span>').join('')
+        : '<span class="anv-cmp-chip muted">no model recorded</span>';
+      const pipeChip = pipelineChip(s.modes);
+      const msgs = Array.isArray(s.messages) ? s.messages.length : 0;
       return '<label class="anv-cmp-opt' + (isSelf?' self':'') + '">' +
         '<input type="checkbox" class="anv-cmp-cb" value="' + esc(id) + '"' + (isSelf?' checked':'') + ' />' +
-        '<span class="nm">' + esc(convName(s)) + '</span>' +
-        '<span class="sn">' + esc(firstUserMsg(s)) + '</span>' +
+        '<span class="anv-cmp-optmain">' +
+          '<span class="anv-cmp-optline"><span class="nm">' + esc(convName(s)) + '</span><span class="sn">' + esc(firstUserMsg(s)) + '</span></span>' +
+          '<span class="anv-cmp-optmeta"><span class="anv-cmp-meta-lbl"><i class="fas fa-comment"></i> ' + msgs + ' msg</span>' + pipeChip + chips + '</span>' +
+        '</span>' +
       '</label>';
     }).join('');
     anvBody.innerHTML =
       '<div class="anv-cmp-pick">' +
         '<div class="anv-section-label" style="margin-bottom:4px;"><i class="fas fa-scale-balanced"></i> Pick conversations to compare</div>' +
-        '<div style="font-size:0.74rem;color:var(--text-dim);">Select 2 or more — usage is fetched for each and shown side-by-side.</div>' +
+        '<div style="font-size:0.74rem;color:var(--text-dim);">Select 2 or more — usage is fetched for each and shown side-by-side. Each row previews the models that conversation used; the pipeline (recorded per AI call) appears in the comparison.</div>' +
         '<div class="anv-cmp-pick-list">' + opts + '</div>' +
         '<div style="display:flex;gap:10px;align-items:center;">' +
           '<button class="anv-btn" id="anvCmpGo"><i class="fas fa-scale-balanced"></i> Compare selected</button>' +
@@ -977,6 +1094,13 @@
       ['AI calls',        d => { const v=(d.total&&d.total.calls)||0;  return [v, fmtInt(v)]; }],
       ['Avg tokens/call', d => { const t=d.total||{}; const v=t.calls?Math.round((t.tokens||0)/t.calls):0; return [v, compact(v)]; }],
       ['Avg cost/call',   d => { const t=d.total||{}; const v=t.calls?(t.cost||0)/t.calls:0; return [v, money4(v)]; }],
+      ['Pipeline',        d => {
+        const modes = Array.from(new Set((d.events||[]).map(r=>r.mode).filter(v=>v!=null))).sort();
+        const txt = modes.length===0 ? '—'
+          : modes.length===1 ? ('Pipeline ' + modes[0] + (modes[0]===2 ? ' · 3-model' : ' · single'))
+          : ('Mixed · ' + modes.map(m=>'P'+m).join(', '));
+        return [null, txt];
+      }],
       ['Models used',     d => { const v=(d.byModel||[]).length; return [v, String(v)]; }],
       ['Most-used model', d => { const bm=(d.byModel||[]).slice().sort((a,b)=>b.tokens-a.tokens)[0]; return [null, bm?modelBadge(bm.model):'—']; }],
       ['Duration',        d => { const v=d.duration&&d.duration.ms; return [v||0, fmtDur(v)]; }],

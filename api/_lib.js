@@ -233,6 +233,19 @@ function sniffImageType(bytes) {
   return { ext: 'png', mime: 'image/png' }; // default; embedPng will surface a real failure
 }
 
+// Turn a client name into a safe file base, e.g. "James Boroy" -> "James-Boroy".
+// Falls back to "sawo-drawing" when there's no usable name so files are never
+// unnamed. Used to label the email's image/PDF attachments after the client.
+function clientFileBase(name) {
+  const cleaned = String(name || '')
+    .trim()
+    .replace(/[^\w\s-]/g, '')  // drop punctuation/accents that break filenames
+    .replace(/\s+/g, '-')      // spaces -> dashes
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return cleaned ? `${cleaned}-sauna-drawing` : 'sawo-drawing';
+}
+
 async function buildPdfFromImage(imgBytes) {
   try {
     const pdf = await PDFDocument.create();
@@ -345,26 +358,22 @@ export async function notifySales(sessionId) {
   if (imageBytes) {
     const { ext, mime } = sniffImageType(imageBytes);
     const imgB64 = imageBytes.toString('base64');
+    const base = clientFileBase(conv?.client_name);
 
-    // Inline copy for the email body (cid:drawing). Many clients (e.g. Outlook)
-    // block embedded images by default, so this alone is not enough.
+    // ONE image attachment that does double duty: it's embedded inline in the
+    // body (cid:drawing) AND is a real, named, downloadable file. A single entry
+    // avoids the duplicate PNG that earlier showed two copies in the attachment
+    // list. Named after the client so sales can identify it at a glance.
     attachments.push({
-      filename: `drawing-inline.${ext}`,
+      filename: `${base}.${ext}`,
       content_base64: imgB64,
       mime,
       cid: 'drawing',
     });
-    // Real downloadable image attachment — always present even when the inline
-    // copy is blocked. This is the file the previous version was missing.
-    attachments.push({
-      filename: `sawo-drawing.${ext}`,
-      content_base64: imgB64,
-      mime,
-    });
     const pdfBytes = await buildPdfFromImage(imageBytes);
     if (pdfBytes) {
       attachments.push({
-        filename: 'sawo-drawing.pdf',
+        filename: `${base}.pdf`,
         content_base64: pdfBytes.toString('base64'),
         mime: 'application/pdf',
       });

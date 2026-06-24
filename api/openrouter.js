@@ -16,6 +16,22 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // phase is never trimmed (it needs the full transcript to build the dataset).
 const MAX_CONVERSE_MESSAGES = 16;
 
+// Normalize an OpenRouter `usage` object into the compact shape the CMS generator
+// shows live (tokens in/out + USD cost). Returns null when usage is unavailable so
+// the client can skip the update rather than render zeros.
+function clientUsage(usage, phase) {
+  if (!usage) return null;
+  const prompt = usage.prompt_tokens || 0;
+  const completion = usage.completion_tokens || 0;
+  return {
+    phase: phase || null,
+    prompt_tokens: prompt,
+    completion_tokens: completion,
+    total_tokens: usage.total_tokens || (prompt + completion),
+    cost: typeof usage.cost === 'number' ? usage.cost : 0,
+  };
+}
+
 // Record one OpenRouter call's token/cost usage. Best-effort: a telemetry
 // failure (e.g. the usage_events table not migrated yet) must never break the
 // user-facing response, so all errors are swallowed.
@@ -187,7 +203,13 @@ export default async function handler(req, res) {
       });
       // Report the model actually used so the UI can label the reply accurately
       // (no dependence on a separately-fetched config that may not have loaded).
-      return res.status(200).json({ content: typeof content === 'string' ? content : JSON.stringify(content), model });
+      // `usage` is also handed back so the CMS generator can show live token/cost
+      // metrics without an extra round-trip (same numbers logged above).
+      return res.status(200).json({
+        content: typeof content === 'string' ? content : JSON.stringify(content),
+        model,
+        usage: clientUsage(data.usage, phaseResolved),
+      });
     }
 
     if (type === 'image') {
@@ -237,7 +259,7 @@ export default async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ imageUrl });
+      return res.status(200).json({ imageUrl, usage: clientUsage(data.usage, 'image') });
     }
 
     return res.status(400).json({ error: 'Unknown type (expected chat|image)' });

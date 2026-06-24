@@ -101,6 +101,32 @@ export default async function handler(req, res) {
       if (error) return res.status(500).json({ error: error.message });
       // Hide sessions with no actual client message (incl. legacy empty rows).
       const sessions = (data || []).filter((s) => hasClientMessage(s.messages));
+      // Enrich each session with the pipeline mode(s) recorded for its AI calls so
+      // the compare picker can preview "Pipeline 1/2" without an extra fetch per row.
+      // One grouped query for all listed sessions; best-effort (usage_events may not
+      // be migrated yet, in which case sessions just carry no `modes`).
+      try {
+        const ids = sessions.map((s) => s.session_id).filter(Boolean);
+        if (ids.length) {
+          const { data: rows, error: uErr } = await svc
+            .from('usage_events')
+            .select('session_id, mode')
+            .in('session_id', ids);
+          if (!uErr && rows) {
+            const map = {};
+            for (const r of rows) {
+              if (r.mode == null || !r.session_id) continue;
+              (map[r.session_id] ||= new Set()).add(Number(r.mode));
+            }
+            for (const s of sessions) {
+              const set = map[s.session_id];
+              s.modes = set ? Array.from(set).sort((a, b) => a - b) : [];
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[list] modes enrich failed:', e?.message || e);
+      }
       return res.status(200).json({ sessions });
     }
 

@@ -19,7 +19,7 @@
   .page-header{
     display:flex; align-items:center; gap:14px; padding:16px 26px; background:var(--panel);
     border-bottom:1px solid var(--line); flex-shrink:0; box-shadow:0 1px 0 rgba(139,94,60,0.04);
-  }
+    
   .ph-icon{
     width:42px; height:42px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
     background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; font-size:1.05rem;
@@ -41,7 +41,12 @@
   }
   .btn:hover{ background:linear-gradient(135deg,var(--brown-deep) 0%,var(--brown-mid) 100%); color:#fff; border-color:transparent; }
   .body{ flex:1; overflow-y:auto; min-height:0; padding:24px; }
-  .panel{ max-width:760px; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px 26px; box-shadow:0 10px 30px rgba(139,94,60,0.06); }
+  /* Panels fill the iframe width (the shell already provides side gutters via
+     .body padding). Individual narrow forms cap their own line length below. */
+  .panel{ max-width:none; margin:0 auto; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px 26px; box-shadow:0 10px 30px rgba(139,94,60,0.06); }
+  /* Create-user collapsible header */
+  .cu-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .cu-head .section-label{ margin:0; }
   .panel + .panel{ margin-top:20px; }
   .section-label{ font-size:0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-deep); margin:0 0 16px; display:flex; align-items:center; gap:9px; }
   .section-label i{ color:var(--brown-mid); }
@@ -73,9 +78,10 @@
   table{ width:100%; border-collapse:collapse; margin-top:4px; font-size:0.82rem; }
   th,td{ text-align:left; padding:10px 10px; border-bottom:1px solid var(--line); }
   th{ font-size:0.66rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
-  .pill{ font-size:0.64rem; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:10px; }
-  .pill.admin{ background:rgba(139,94,60,0.16); color:var(--brown-deep); }
-  .pill.sales{ background:rgba(166,120,83,0.12); color:var(--brown-mid); }
+  .pill{ display:inline-flex; align-items:center; gap:5px; font-size:0.64rem; font-weight:700; text-transform:uppercase; padding:2px 9px; border-radius:10px; }
+  .pill i{ font-size:0.66rem; }
+  .pill.admin{ background:rgba(201,48,44,0.14); color:#C9302C; }
+  .pill.sales{ background:rgba(59,130,246,0.16); color:#2563EB; }
   .pill.on{ background:rgba(74,157,74,0.14); color:#4A9D4A; }
   .pill.off{ background:rgba(201,48,44,0.12); color:#C9302C; }
   .mini{ border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--brown-deep); font-family:'Montserrat',sans-serif; font-weight:600; font-size:0.68rem; padding:5px 9px; cursor:pointer; margin-right:6px; }
@@ -296,7 +302,11 @@
       <!-- ── USERS ── -->
       <section id="usersTab" class="hidden">
         <div class="panel">
-          <div class="section-label"><i class="fas fa-user-plus"></i> Create user</div>
+          <div class="cu-head">
+            <div class="section-label"><i class="fas fa-user-plus"></i> Create user</div>
+            <button class="primary" id="addUserToggle" style="margin:0;"><i class="fas fa-user-plus"></i> Add User</button>
+          </div>
+          <div id="createUserForm" class="hidden" style="margin-top:18px;">
           <div class="row">
             <div>
               <label class="field-label">Username</label>
@@ -329,6 +339,7 @@
           </div>
           <button class="primary" id="createUserBtn"><i class="fas fa-user-plus"></i> Create user</button>
           <div class="msg-line" id="userMsg"></div>
+          </div>
         </div>
         <div class="panel">
           <div class="section-label"><i class="fas fa-users"></i> Existing users</div>
@@ -550,6 +561,20 @@
     gate.classList.remove('hidden');
   }
 
+  // ── Create-user collapse: form is hidden until "Add User" is clicked ──
+  const addUserToggle = document.getElementById('addUserToggle');
+  const createUserForm = document.getElementById('createUserForm');
+  if(addUserToggle && createUserForm){
+    addUserToggle.addEventListener('click', () => {
+      const show = createUserForm.classList.contains('hidden');
+      createUserForm.classList.toggle('hidden', !show);
+      addUserToggle.innerHTML = show
+        ? '<i class="fas fa-xmark"></i> Cancel'
+        : '<i class="fas fa-user-plus"></i> Add User';
+      if(show) document.getElementById('nuUser').focus();
+    });
+  }
+
   // ── Confirm-password reveal-on-typing (create user) ──
   const nuPass = document.getElementById('nuPass');
   const nuConfirmWrap = document.getElementById('nuConfirmWrap');
@@ -574,12 +599,13 @@
       users.forEach(u => {
         const tr = document.createElement('tr');
         const roleClass = u.role === 'admin' ? 'admin' : 'sales';
+        const roleIcon = u.role === 'admin' ? 'fa-user-shield' : 'fa-user-tag';
         const statusPill = u.active === false ? '<span class="pill off">inactive</span>' : '<span class="pill on">active</span>';
         const toggleRole = u.role === 'admin' ? 'sales' : 'admin';
         tr.innerHTML =
           '<td><b>' + esc(u.username || '—') + '</b></td>' +
           '<td style="color:var(--text-dim);">' + esc(u.email || '') + '</td>' +
-          '<td><span class="pill ' + roleClass + '">' + esc(u.role || '—') + '</span></td>' +
+          '<td><span class="pill ' + roleClass + '"><i class="fas ' + roleIcon + '"></i>' + esc(u.role || '—') + '</span></td>' +
           '<td>' + statusPill + '</td>' +
           '<td style="color:var(--text-dim);">' + esc(fmt(u.created_at)) + '</td>' +
           '<td>' +
@@ -650,6 +676,11 @@
       document.getElementById('nuPass').value = '';
       document.getElementById('nuConfirm').value = '';
       nuConfirmWrap.classList.add('hidden');
+      // Collapse the form back down after a successful create.
+      if(createUserForm && addUserToggle){
+        createUserForm.classList.add('hidden');
+        addUserToggle.innerHTML = '<i class="fas fa-user-plus"></i> Add User';
+      }
       loadUsers();
     }catch(e){ msg.className = 'msg-line err'; msg.textContent = e.message; }
     finally{ btn.disabled = false; }
