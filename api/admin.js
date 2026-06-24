@@ -144,18 +144,21 @@ export default async function handler(req, res) {
       // Fetch a touch wider than 30 days so no local-day row near the edge is clipped.
       const since = new Date(now.getTime() - 32 * DAY_MS).toISOString();
 
+      // How many recent rows to ship for the Message Log / export (capped).
+      const msgLimit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 5000);
+
       const { data: rows, error } = await svc
         .from('usage_events')
-        .select('created_at, model, phase, prompt_tokens, completion_tokens, total_tokens, cost')
+        .select('id, created_at, model, phase, mode, session_id, prompt_tokens, completion_tokens, total_tokens, cost, latency_ms, finish_reason')
         .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(100000);
       if (error) {
         // Surface a clear hint when the table hasn't been migrated yet.
-        const missing = /relation .*usage_events.* does not exist|could not find the table/i.test(error.message || '');
+        const missing = /relation .*usage_events.* does not exist|could not find the table|column .* does not exist/i.test(error.message || '');
         return res.status(missing ? 200 : 500).json(
           missing
-            ? { needsMigration: true, totals: {}, byModel: [], byPhase: [], daily: [] }
+            ? { needsMigration: true, totals: {}, performance: {}, byModel: [], byPhase: [], byMode: [], daily: [], dailyByModel: [], messages: [] }
             : { error: error.message }
         );
       }
@@ -172,13 +175,22 @@ export default async function handler(req, res) {
       const totals = { today: blank(), yesterday: blank(), last7: blank(), last30: blank() };
       const modelMap = {};
       const phaseMap = {};
+      const modeMap = {};
       const dailyMap = {};
+      const dailyModelMap = {};   // day -> { model -> { cost, tokens } }
+
+      // Performance: average latency + fastest/slowest single call (with model).
+      let latSum = 0, latCount = 0;
+      let fastest = null, slowest = null;
 
       for (const r of rows || []) {
         const t = new Date(r.created_at).getTime();
         const cost = Number(r.cost) || 0;
-        const tokens = Number(r.total_tokens) || ((Number(r.prompt_tokens) || 0) + (Number(r.completion_tokens) || 0));
+        const prompt = Number(r.prompt_tokens) || 0;
+        const completion = Number(r.completion_tokens) || 0;
+        const tokens = Number(r.total_tokens) || (prompt + completion);
         const dk = dayKey(r.created_at);
+        const mk = r.model || 'unknown';
 
         const add = (b) => { b.cost += cost; b.tokens += tokens; b.calls += 1; };
         if (t >= start30) add(totals.last30);
@@ -186,39 +198,67 @@ export default async function handler(req, res) {
         if (dk === todayKey) add(totals.today);
         else if (dk === yesterdayKey) add(totals.yesterday);
 
-        const mk = r.model || 'unknown';
-        (modelMap[mk] ||= { model: mk, cost: 0, tokens: 0, prompt_tokens: 0, completion_tokens: 0, calls: 0 });
-        modelMap[mk].cost += cost;
-        modelMap[mk].tokens += tokens;
-        modelMap[mk].prompt_tokens += Number(r.prompt_tokens) || 0;
-        modelMap[mk].completion_tokens += Number(r.completion_tokens) || 0;
-        modelMap[mk].calls += 1;
+        (modelMap[mk] ||= { model: mk, cost: 0, tokens: 0, prompt_tokens: 0, completion_tokens: 0, calls: 0, latSum: 0, latCount: 0, lastUsed: r.created_at });
+        const m = modelMap[mk];
+        m.cost += cost; m.tokens += tokens; m.prompt_tokens += prompt; m.completion_tokens += completion; m.calls += 1;
+        if (r.created_at > m.lastUsed) m.lastUsed = r.created_at;
 
         const pk = r.phase || 'other';
         (phaseMap[pk] ||= { phase: pk, cost: 0, tokens: 0, calls: 0 });
-        phaseMap[pk].cost += cost;
-        phaseMap[pk].tokens += tokens;
-        phaseMap[pk].calls += 1;
+        phaseMap[pk].cost += cost; phaseMap[pk].tokens += tokens; phaseMap[pk].calls += 1;
+
+        const mdk = r.mode == null ? 'unknown' : String(r.mode);
+        (modeMap[mdk] ||= { mode: mdk, cost: 0, tokens: 0, calls: 0 });
+        modeMap[mdk].cost += cost; modeMap[mdk].tokens += tokens; modeMap[mdk].calls += 1;
 
         (dailyMap[dk] ||= { day: dk, cost: 0, tokens: 0, calls: 0 });
-        dailyMap[dk].cost += cost;
-        dailyMap[dk].tokens += tokens;
-        dailyMap[dk].calls += 1;
+        dailyMap[dk].cost += cost; dailyMap[dk].tokens += tokens; dailyMap[dk].calls += 1;
+
+        (dailyModelMap[dk] ||= {});
+        (dailyModelMap[dk][mk] ||= { cost: 0, tokens: 0 });
+        dailyModelMap[dk][mk].cost += cost; dailyModelMap[dk][mk].tokens += tokens;
+
+        const lat = r.latency_ms == null ? null : Number(r.latency_ms);
+        if (lat != null && isFinite(lat)) {
+          latSum += lat; latCount += 1;
+          m.latSum += lat; m.latCount += 1;
+          if (!fastest || lat < fastest.ms) fastest = { model: mk, ms: lat };
+          if (!slowest || lat > slowest.ms) slowest = { model: mk, ms: lat };
+        }
       }
 
       // Dense 30-day daily series (fill gaps with zeros), oldest → newest. Keys are
       // calendar dates anchored on the local "today", decremented in UTC (no DST drift).
       const daily = [];
+      const dailyByModel = [];
       for (let i = 29; i >= 0; i--) {
         const k = new Date(todayUTC - i * DAY_MS).toISOString().slice(0, 10);
         daily.push(dailyMap[k] || { day: k, cost: 0, tokens: 0, calls: 0 });
+        dailyByModel.push({ day: k, perModel: dailyModelMap[k] || {} });
       }
+
+      const byModel = Object.values(modelMap)
+        .map((m) => ({
+          model: m.model, calls: m.calls, cost: m.cost, tokens: m.tokens,
+          prompt_tokens: m.prompt_tokens, completion_tokens: m.completion_tokens,
+          avgLatencyMs: m.latCount ? Math.round(m.latSum / m.latCount) : null,
+          lastUsed: m.lastUsed,
+        }))
+        .sort((a, b) => b.cost - a.cost);
 
       return res.status(200).json({
         totals,
-        byModel: Object.values(modelMap).sort((a, b) => b.cost - a.cost),
+        performance: {
+          avgLatencyMs: latCount ? Math.round(latSum / latCount) : null,
+          fastest, slowest,
+        },
+        byModel,
         byPhase: Object.values(phaseMap).sort((a, b) => b.cost - a.cost),
+        byMode: Object.values(modeMap).sort((a, b) => b.cost - a.cost),
         daily,
+        dailyByModel,
+        // Most-recent rows for the Message Log + CSV/JSON export.
+        messages: (rows || []).slice(0, msgLimit),
       });
     }
 

@@ -185,6 +185,76 @@
   .an-warn{ background:rgba(201,48,44,0.08); border:1px solid rgba(201,48,44,0.25); color:#9c2c2a; border-radius:11px; padding:14px 16px; font-size:0.8rem; line-height:1.55; margin-bottom:20px; }
   .an-warn b{ color:#7d211f; }
   .an-warn code{ background:rgba(0,0,0,0.06); padding:1px 6px; border-radius:5px; font-size:0.74rem; }
+
+  /* ── Analytics: tabs ── */
+  .an-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; background:#f3ece3; border:1px solid var(--line); border-radius:12px; padding:5px; }
+  .an-tab{
+    border:none; background:transparent; color:var(--text-dim); font-family:'Montserrat',sans-serif; font-weight:600;
+    font-size:0.74rem; letter-spacing:0.02em; padding:8px 14px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:all 0.18s;
+  }
+  .an-tab i{ font-size:0.8rem; }
+  .an-tab:hover{ color:var(--brown-deep); }
+  .an-tab.active{ background:#fff; color:var(--brown-deep); box-shadow:0 2px 8px rgba(139,94,60,0.12); }
+  /* ── model badge + dot ── */
+  .mbadge{ display:inline-flex; align-items:center; gap:7px; font-weight:600; color:var(--black); white-space:nowrap; }
+  .mbadge .dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; box-shadow:0 0 0 2px rgba(0,0,0,0.04); }
+  .pill-phase, .pill-mode{ font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 8px; border-radius:9px; background:#f3ece3; color:var(--brown-deep); }
+  /* ── progress bar (model color) ── */
+  .pbar{ height:7px; border-radius:5px; background:#eee4d8; overflow:hidden; min-width:90px; }
+  .pbar > span{ display:block; height:100%; border-radius:5px; }
+  .pct-cell{ display:flex; align-items:center; gap:9px; }
+  .pct-cell .pct-num{ font-size:0.7rem; color:var(--text-dim); font-variant-numeric:tabular-nums; min-width:38px; text-align:right; }
+  /* ── model cards ── */
+  .mcard{ border:1px solid var(--line); border-left-width:4px; border-radius:11px; padding:14px 16px; margin-bottom:10px; background:#fff; }
+  .mcard .mc-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .mcard .mc-name{ font-size:0.9rem; font-weight:700; color:var(--black); }
+  .mcard .mc-slug{ font-size:0.64rem; color:var(--text-dim); }
+  .mcard .mc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  @media (max-width:680px){ .mcard .mc-grid{ grid-template-columns:repeat(2,1fr); } }
+  .mcard .mc-stat .k{ font-size:0.58rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
+  .mcard .mc-stat .v{ font-size:0.92rem; font-weight:700; color:var(--brown-deep); font-variant-numeric:tabular-nums; }
+  /* ── stacked daily chart ── */
+  .schart{ display:flex; align-items:flex-end; gap:3px; height:170px; padding-top:8px; }
+  .schart .scol{ flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%; position:relative; border-radius:4px 4px 0 0; overflow:hidden; }
+  .schart .seg{ width:100%; }
+  .schart .scol .tip{ display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); white-space:nowrap; background:var(--black); color:#fff; font-size:0.64rem; padding:4px 8px; border-radius:6px; z-index:5; }
+  .schart .scol:hover .tip{ display:block; }
+  .legend{ display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
+  .legend .lg{ display:inline-flex; align-items:center; gap:7px; font-size:0.7rem; color:var(--text-dim); cursor:pointer; }
+  .legend .lg .sw{ width:11px; height:11px; border-radius:3px; }
+  .legend .lg.off{ opacity:0.35; text-decoration:line-through; }
+  .range-tabs{ display:inline-flex; gap:4px; margin-left:auto; }
+  .range-tabs button{ border:1px solid var(--line); background:#fff; color:var(--text-dim); font-size:0.66rem; font-weight:600; padding:5px 10px; border-radius:7px; cursor:pointer; }
+  .range-tabs button.active{ background:var(--brown-mid); color:#fff; border-color:transparent; }
+  /* ── comparison ── */
+  .cmp-win{ color:#2f8a3e; font-weight:700; }
+  .cmp-win::after{ content:" \2713"; }
+  .radar-wrap{ display:flex; gap:24px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .radar-legend{ display:flex; flex-direction:column; gap:7px; font-size:0.74rem; }
+  .radar-legend .rl{ display:inline-flex; align-items:center; gap:8px; }
+  .radar-legend .rl .sw{ width:11px; height:11px; border-radius:3px; }
+  /* ── log ── */
+  .log-toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .log-toolbar select, .log-toolbar input{ height:36px; width:auto; min-width:120px; font-size:0.78rem; }
+  .log-toolbar .spacer{ margin-left:auto; }
+  .an-table.sortable th{ cursor:pointer; user-select:none; white-space:nowrap; }
+  .an-table.sortable th .ar{ font-size:0.6rem; opacity:0.6; }
+  .log-row{ cursor:pointer; }
+  .log-row:hover{ background:#fbf7f2; }
+  .log-detail td{ background:#fbf7f2; font-size:0.72rem; color:var(--text-dim); }
+  .log-detail .kv{ display:inline-block; margin-right:18px; }
+  .log-detail .kv b{ color:var(--black); font-weight:600; }
+  .exp-btn{ border:1px solid var(--line); background:#fff; color:var(--brown-deep); font-weight:600; font-size:0.7rem; padding:7px 12px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .exp-btn:hover{ background:var(--brown-mid); color:#fff; border-color:transparent; }
+  /* ── summary ── */
+  .sum-para{ font-size:0.92rem; line-height:1.7; color:var(--black); }
+  .sum-para b{ color:var(--brown-deep); }
+  .insight-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:20px; }
+  @media (max-width:760px){ .insight-grid{ grid-template-columns:repeat(2,1fr); } }
+  .insight{ border:1px solid var(--line); border-radius:11px; padding:13px 15px; background:#fbf8f4; }
+  .insight .i-ico{ font-size:1rem; margin-bottom:6px; }
+  .insight .i-label{ font-size:0.58rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
+  .insight .i-val{ font-size:0.86rem; font-weight:700; color:var(--brown-deep); margin-top:3px; }
 </style>
 </head>
 <body>
@@ -734,87 +804,297 @@
   };
   const shortModel = (m) => String(m || '').split('/').pop();
 
-  function statCard(label, win, sub){
-    return '<div class="stat-card">' +
-      '<div class="sc-label">' + label + '</div>' +
-      '<div class="sc-cost">' + money(win.cost) + '</div>' +
-      '<div class="sc-sub">' + compact(win.tokens) + ' tokens · ' + (win.calls || 0) + ' calls' + (sub ? ' · ' + sub : '') + '</div>' +
-    '</div>';
-  }
+  const fmtInt = (n) => (Number(n) || 0).toLocaleString('en-US');
+  const fmtMs = (n) => (n == null || n === '') ? '—' : fmtInt(Math.round(n)) + 'ms';
 
+  // ── Model color identity: known patterns first, deterministic fallback after ──
+  const COLOR_RULES = [
+    [/claude-opus/i, '#A855F7'], [/claude-sonnet/i, '#8B5CF6'], [/claude-haiku/i, '#EC4899'],
+    [/gemini.*image/i, '#0EA5E9'], [/gemini[-.]?3|gemini.*pro/i, '#3B82F6'], [/gemini.*flash/i, '#06B6D4'],
+    [/deepseek/i, '#92400E'], [/tencent|hy3/i, '#F97316'], [/gpt|openai/i, '#22C55E'],
+  ];
+  const FALLBACK = ['#84CC16','#EAB308','#EF4444','#F59E0B','#64748B','#14B8A6','#D946EF','#0891B2','#7C3AED','#DB2777'];
+  const _colorCache = {};
+  function colorFor(slug){
+    slug = slug || 'unknown';
+    if(_colorCache[slug]) return _colorCache[slug];
+    let c = null;
+    for(const [re, col] of COLOR_RULES){ if(re.test(slug)){ c = col; break; } }
+    if(!c){ let h = 0; for(let i = 0; i < slug.length; i++){ h = (h * 31 + slug.charCodeAt(i)) >>> 0; } c = FALLBACK[h % FALLBACK.length]; }
+    return (_colorCache[slug] = c);
+  }
+  function modelBadge(slug){ return '<span class="mbadge"><span class="dot" style="background:' + colorFor(slug) + '"></span>' + esc(shortModel(slug)) + '</span>'; }
+  const PHASE_LABEL = { converse:'Gather', analyze:'Finalize', image:'Image', other:'Other' };
+  const MODE_LABEL = (m) => (m == null || m === 'unknown') ? '—' : ('Mode ' + m);
+
+  // ── Dashboard state ──
+  let anData = null, anTab = 'overview', otRange = 30, otHidden = {};
+  let logSort = { key:'created_at', dir:'desc' }, logFilter = { model:'', mode:'', session:'' };
+  const AN_TABS = [
+    ['overview','Overview','fa-gauge-high'], ['models','Models','fa-robot'],
+    ['overtime','Over Time','fa-chart-line'], ['comparison','Comparison','fa-scale-balanced'],
+    ['log','Message Log','fa-list'], ['summary','AI Summary','fa-brain'],
+  ];
+
+  function grand(){
+    const bm = anData.byModel || [];
+    return {
+      calls: bm.reduce((s,m)=>s+(m.calls||0),0), cost: bm.reduce((s,m)=>s+(m.cost||0),0),
+      input: bm.reduce((s,m)=>s+(m.prompt_tokens||0),0), output: bm.reduce((s,m)=>s+(m.completion_tokens||0),0),
+      tokens: bm.reduce((s,m)=>s+(m.tokens||0),0),
+    };
+  }
+  function card(label, big, sub, accent){
+    return '<div class="stat-card"' + (accent ? ' style="border-top:3px solid ' + accent + '"' : '') + '>' +
+      '<div class="sc-label">' + label + '</div><div class="sc-cost">' + big + '</div><div class="sc-sub">' + sub + '</div></div>';
+  }
   function renderChart(daily){
     const max = Math.max(...daily.map(d => d.cost), 0.0000001);
-    const bars = daily.map(d => {
-      const h = Math.round((d.cost / max) * 100);
-      return '<div class="bar-col">' +
-        '<span class="tip">' + d.day.slice(5) + ' · ' + money4(d.cost) + ' · ' + compact(d.tokens) + ' tok</span>' +
-        '<div class="bar" style="height:' + h + '%"></div>' +
-      '</div>';
-    }).join('');
-    // Sparse axis labels (every ~5 days) to avoid clutter.
+    const bars = daily.map(d => '<div class="bar-col"><span class="tip">' + d.day.slice(5) + ' · ' + money4(d.cost) + ' · ' + compact(d.tokens) + ' tok</span><div class="bar" style="height:' + Math.round((d.cost/max)*100) + '%"></div></div>').join('');
     const axis = daily.map((d, i) => '<span>' + ((i % 5 === 0 || i === daily.length - 1) ? d.day.slice(5) : '') + '</span>').join('');
     return '<div class="chart">' + bars + '</div><div class="chart-axis">' + axis + '</div>';
   }
 
+  // ── Tab 1: Overview ──
+  function tabOverview(){
+    const t = anData.totals || {}, g = grand(), perf = anData.performance || {};
+    const bm = (anData.byModel || []);
+    if(!bm.length) return emptyPanel();
+    const mostUsed = bm.slice().sort((a,b)=>b.calls-a.calls)[0];
+    const byMode = anData.byMode || [], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
+    const m2pct = totMode ? Math.round((m2?m2.calls:0)/totMode*100) : 0;
+    let h = '<div class="stat-grid">';
+    h += card('Messages', fmtInt(g.calls), fmtInt((t.today||{}).calls||0) + ' today · ' + fmtInt((t.last7||{}).calls||0) + ' this week');
+    h += card('Total tokens', compact(g.tokens), fmtInt(g.input) + ' in · ' + fmtInt(g.output) + ' out', '#3B82F6');
+    h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E');
+    h += card('Models used', fmtInt(bm.length), mostUsed ? ('top ' + modelBadge(mostUsed.model)) : '—', '#A855F7');
+    h += card('Avg latency', fmtMs(perf.avgLatencyMs), perf.fastest ? ('fastest ' + esc(shortModel(perf.fastest.model)) + ' ' + fmtMs(perf.fastest.ms)) : '—', '#F97316');
+    h += card('Mode 2 share', m2pct + '%', fmtInt(totMode) + ' calls tagged', '#8B5CF6');
+    h += '</div>';
+    h += '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-chart-column"></i> Daily spend (last 30 days)</div>' +
+      ((anData.daily && anData.daily.some(d=>d.cost>0)) ? renderChart(anData.daily) : '<div class="an-empty">No usage recorded yet.</div>') + '</div>';
+    return h;
+  }
+
+  // ── Tab 2: Models ──
+  function mcStat(k,v){ return '<div class="mc-stat"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>'; }
+  function tabModels(){
+    const bm = (anData.byModel || []).slice().sort((a,b)=>b.tokens-a.tokens);
+    if(!bm.length) return emptyPanel();
+    const maxTok = Math.max(...bm.map(m=>m.tokens), 1), totTok = bm.reduce((s,m)=>s+m.tokens,0)||1, totCost = bm.reduce((s,m)=>s+m.cost,0)||1;
+    let h = '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-chart-bar"></i> Token share by model</div><table class="an-table"><tbody>' +
+      bm.map(m => '<tr><td style="width:190px;">' + modelBadge(m.model) + '</td>' +
+        '<td><div class="pct-cell"><div class="pbar" style="flex:1"><span style="width:' + Math.round(m.tokens/maxTok*100) + '%;background:' + colorFor(m.model) + '"></span></div><span class="pct-num">' + Math.round(m.tokens/totTok*100) + '%</span></div></td>' +
+        '<td class="num" style="width:80px;">' + compact(m.tokens) + '</td></tr>').join('') + '</tbody></table></div>';
+    h += bm.map(m => '<div class="mcard" style="border-left-color:' + colorFor(m.model) + '">' +
+      '<div class="mc-head"><div><div class="mc-name">' + modelBadge(m.model) + '</div><div class="mc-slug">' + esc(m.model) + '</div></div><div class="mc-slug">last used ' + esc(fmt(m.lastUsed)) + '</div></div>' +
+      '<div class="mc-grid">' + mcStat('Messages', fmtInt(m.calls)) + mcStat('Input', compact(m.prompt_tokens)) + mcStat('Output', compact(m.completion_tokens)) + mcStat('Total tokens', compact(m.tokens)) +
+        mcStat('Cost', money4(m.cost)) + mcStat('% of cost', Math.round(m.cost/totCost*100) + '%') + mcStat('Avg latency', fmtMs(m.avgLatencyMs)) + mcStat('Avg tokens/msg', m.calls?compact(Math.round(m.tokens/m.calls)):'—') +
+      '</div></div>').join('');
+    return h;
+  }
+
+  // ── Tab 3: Over Time ──
+  function cumulativeSvg(daily){
+    const W=720, H=140, pad=6; let cum=0;
+    const cums = daily.map(d => { cum += d.cost; return cum; });
+    const max = Math.max(...cums, 0.0000001);
+    const pts = daily.map((d,i) => {
+      const x = pad + (i/Math.max(daily.length-1,1))*(W-2*pad);
+      const y = H - pad - (cums[i]/max)*(H-2*pad);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    const area = 'M' + pts[0] + ' L' + pts.join(' ') + ' L' + (W-pad) + ',' + (H-pad) + ' L' + pad + ',' + (H-pad) + ' Z';
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="150" preserveAspectRatio="none"><path d="' + area + '" fill="rgba(175,133,100,0.14)"/><polyline points="' + pts.join(' ') + '" fill="none" stroke="#AF8564" stroke-width="2"/></svg>' +
+      '<div class="sc-sub" style="margin-top:6px;">Total ' + money(cum) + ' over ' + daily.length + ' days</div>';
+  }
+  function stackedChart(dbm, models){
+    const totals = dbm.map(day => models.reduce((s,mo)=> s + ((day.perModel[mo]||{}).tokens||0), 0));
+    const max = Math.max(...totals, 1);
+    const cols = dbm.map((day,i) => {
+      const segs = models.filter(mo=>!otHidden[mo]).map(mo => {
+        const tk = (day.perModel[mo]||{}).tokens || 0;
+        return tk ? '<div class="seg" style="height:' + ((tk/max)*100) + '%;background:' + colorFor(mo) + '"></div>' : '';
+      }).join('');
+      return '<div class="scol"><span class="tip">' + day.day.slice(5) + ' · ' + compact(totals[i]) + ' tok</span>' + segs + '</div>';
+    }).join('');
+    return '<div class="schart">' + cols + '</div>';
+  }
+  function legend(models){
+    return '<div class="legend">' + models.map(mo => '<span class="lg' + (otHidden[mo]?' off':'') + '" data-mo="' + encodeURIComponent(mo) + '"><span class="sw" style="background:' + colorFor(mo) + '"></span>' + esc(shortModel(mo)) + '</span>').join('') + '</div>';
+  }
+  function tabOverTime(){
+    const daily = (anData.daily || []).slice(-otRange), dbm = (anData.dailyByModel || []).slice(-otRange);
+    const models = (anData.byModel || []).map(m=>m.model);
+    if(!daily.some(d=>d.cost>0)) return emptyPanel();
+    const rt = '<div class="range-tabs">' + [7,14,30].map(r => '<button class="' + (otRange===r?'active':'') + '" data-range="' + r + '">' + r + 'd</button>').join('') + '</div>';
+    let h = '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label" style="display:flex;align-items:center"><i class="fas fa-coins"></i> Daily spend ' + rt + '</div>' + renderChart(daily) + '</div>';
+    h += '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-chart-area"></i> Cumulative cost</div>' + cumulativeSvg(daily) + '</div>';
+    h += '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-layer-group"></i> Tokens per day by model</div>' + stackedChart(dbm, models) + legend(models) + '</div>';
+    return h;
+  }
+
+  // ── Tab 4: Comparison ──
+  function radar(bm){
+    const models = bm.slice(0, 6);
+    const axes = [['Speed', m=>m.avgLatencyMs?1/m.avgLatencyMs:0], ['Cost eff', m=>m.tokens?1/(m.cost/m.tokens*1000+1e-9):0], ['Volume', m=>m.tokens||0], ['Frequency', m=>m.calls||0]];
+    const maxes = axes.map(([,fn]) => Math.max(...models.map(fn), 1e-9));
+    const cx=130, cy=130, R=100, N=axes.length, ang = i => (-Math.PI/2) + i*2*Math.PI/N;
+    const ring = r => axes.map((_,i)=> (cx+Math.cos(ang(i))*r).toFixed(1) + ',' + (cy+Math.sin(ang(i))*r).toFixed(1)).join(' ');
+    let svg = '<svg viewBox="0 0 260 270" width="260" height="270">';
+    [0.25,0.5,0.75,1].forEach(f => svg += '<polygon points="' + ring(R*f) + '" fill="none" stroke="#e7ddd2"/>');
+    axes.forEach((a,i)=>{ const x=cx+Math.cos(ang(i))*R, y=cy+Math.sin(ang(i))*R; svg += '<line x1="'+cx+'" y1="'+cy+'" x2="'+x.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="#e7ddd2"/>'; });
+    axes.forEach(([lab],i)=>{ const x=cx+Math.cos(ang(i))*(R+18), y=cy+Math.sin(ang(i))*(R+18); svg += '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" font-size="9" fill="#8a7c6e" text-anchor="middle" dominant-baseline="middle">'+lab+'</text>'; });
+    models.forEach(m => {
+      const pts = axes.map(([,fn],i)=>{ const r = R*Math.max(fn(m)/maxes[i], 0.02); return (cx+Math.cos(ang(i))*r).toFixed(1)+','+(cy+Math.sin(ang(i))*r).toFixed(1); }).join(' ');
+      svg += '<polygon points="'+pts+'" fill="'+colorFor(m.model)+'22" stroke="'+colorFor(m.model)+'" stroke-width="1.5"/>';
+    });
+    svg += '</svg>';
+    const leg = '<div class="radar-legend">' + models.map(m => '<span class="rl"><span class="sw" style="background:'+colorFor(m.model)+'"></span>'+esc(shortModel(m.model))+'</span>').join('') + '</div>';
+    return '<div class="radar-wrap">' + svg + leg + '</div>';
+  }
+  function tabComparison(){
+    const bm = (anData.byModel || []).slice().sort((a,b)=>b.cost-a.cost);
+    if(!bm.length) return emptyPanel();
+    const per1k = m => m.tokens ? (m.cost/m.tokens*1000) : Infinity;
+    const cheapest = bm.reduce((a,b)=> per1k(b)<per1k(a)?b:a);
+    const withLat = bm.filter(m=>m.avgLatencyMs!=null);
+    const fastest = withLat.length ? withLat.reduce((a,b)=> b.avgLatencyMs<a.avgLatencyMs?b:a) : null;
+    const rows = [
+      ['Messages', m=>fmtInt(m.calls), null], ['Input tokens', m=>compact(m.prompt_tokens), null], ['Output tokens', m=>compact(m.completion_tokens), null],
+      ['Total tokens', m=>compact(m.tokens), null], ['Total cost', m=>money4(m.cost), null], ['Avg tokens/msg', m=>m.calls?compact(Math.round(m.tokens/m.calls)):'—', null],
+      ['Avg cost/msg', m=>m.calls?money4(m.cost/m.calls):'—', null], ['Cost / 1K tokens', m=>m.tokens?money4(per1k(m)):'—', m=>m===cheapest], ['Avg latency', m=>fmtMs(m.avgLatencyMs), m=>fastest&&m===fastest],
+    ];
+    let h = '<div class="panel an-panel" style="margin:0 auto 20px;overflow-x:auto;"><div class="section-label"><i class="fas fa-scale-balanced"></i> Model comparison</div>' +
+      '<table class="an-table"><thead><tr><th>Metric</th>' + bm.map(m=>'<th class="num">'+modelBadge(m.model)+'</th>').join('') + '</tr></thead><tbody>' +
+      rows.map(([label,fn,win]) => '<tr><td class="mdl">'+label+'</td>' + bm.map(m=>'<td class="num'+(win&&win(m)?' cmp-win':'')+'">'+fn(m)+'</td>').join('') + '</tr>').join('') +
+      '</tbody></table></div>';
+    h += '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-bullseye"></i> Profile (normalized across used models)</div>' + radar(bm) + '</div>';
+    return h;
+  }
+
+  // ── Tab 5: Message Log ──
+  function filteredLogRows(){
+    return (anData.messages || []).filter(r =>
+      (!logFilter.model || r.model === logFilter.model) &&
+      (!logFilter.mode || String(r.mode) === logFilter.mode) &&
+      (!logFilter.session || (r.session_id||'').includes(logFilter.session)));
+  }
+  function tabLog(){
+    const all = anData.messages || [];
+    if(!all.length) return emptyPanel('No messages recorded yet.');
+    const models = [...new Set(all.map(r=>r.model))];
+    let rows = filteredLogRows().slice().sort((a,b)=>{
+      const k = logSort.key; let av = a[k], bv = b[k];
+      if(k==='created_at' || k==='model' || k==='phase' || k==='finish_reason'){ av = av||''; bv = bv||''; }
+      else { av = Number(av)||0; bv = Number(bv)||0; }
+      const r = av<bv?-1:av>bv?1:0; return logSort.dir==='asc'?r:-r;
+    });
+    const cols = [['created_at','Time'],['model','Model'],['phase','Phase'],['mode','Mode'],['prompt_tokens','In'],['completion_tokens','Out'],['total_tokens','Total'],['cost','Cost'],['latency_ms','Latency'],['finish_reason','Finish']];
+    const numCols = ['prompt_tokens','completion_tokens','total_tokens','cost','latency_ms'];
+    const arrow = k => logSort.key===k ? (logSort.dir==='asc'?'▲':'▼') : '';
+    let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="log-toolbar">' +
+      '<select id="lgModel"><option value="">All models</option>' + models.map(mo=>'<option value="'+esc(mo)+'"'+(logFilter.model===mo?' selected':'')+'>'+esc(shortModel(mo))+'</option>').join('') + '</select>' +
+      '<select id="lgMode"><option value="">All modes</option><option value="1"'+(logFilter.mode==='1'?' selected':'')+'>Mode 1</option><option value="2"'+(logFilter.mode==='2'?' selected':'')+'>Mode 2</option></select>' +
+      '<input id="lgSession" type="text" placeholder="session id…" value="'+esc(logFilter.session)+'"/>' +
+      '<span class="spacer"></span><button class="exp-btn" id="lgCsv"><i class="fas fa-file-csv"></i> CSV</button><button class="exp-btn" id="lgJson"><i class="fas fa-file-code"></i> JSON</button></div>';
+    h += '<div style="overflow-x:auto;"><table class="an-table sortable"><thead><tr>' + cols.map(([k,l])=>'<th data-sort="'+k+'" class="'+(numCols.includes(k)?'num':'')+'">'+l+' <span class="ar">'+arrow(k)+'</span></th>').join('') + '</tr></thead><tbody>';
+    h += rows.map((r,idx) => '<tr class="log-row" data-idx="'+idx+'">' +
+      '<td>'+esc(fmt(r.created_at))+'</td><td>'+modelBadge(r.model)+'</td>' +
+      '<td><span class="pill-phase">'+esc(PHASE_LABEL[r.phase]||r.phase||'—')+'</span></td>' +
+      '<td><span class="pill-mode">'+esc(MODE_LABEL(r.mode))+'</span></td>' +
+      '<td class="num">'+fmtInt(r.prompt_tokens)+'</td><td class="num">'+fmtInt(r.completion_tokens)+'</td><td class="num">'+fmtInt(r.total_tokens)+'</td>' +
+      '<td class="num">'+money4(r.cost)+'</td><td class="num">'+fmtMs(r.latency_ms)+'</td><td>'+esc(r.finish_reason||'—')+'</td></tr>' +
+      '<tr class="log-detail hidden" data-detail="'+idx+'"><td colspan="10">' +
+        '<span class="kv"><b>session</b> '+esc(r.session_id||'—')+'</span><span class="kv"><b>id</b> '+esc(String(r.id))+'</span><span class="kv"><b>model</b> '+esc(r.model)+'</span><span class="kv"><b>created</b> '+esc(r.created_at)+'</span>' +
+      '</td></tr>').join('');
+    h += '</tbody></table></div><div class="sc-sub" style="margin-top:10px;">Showing '+rows.length+' of '+all.length+' recent calls. Click a row for details.</div></div>';
+    return h;
+  }
+
+  // ── Tab 6: AI Summary (computed locally) ──
+  function insight(ico,col,label,val){ return '<div class="insight" style="border-left:4px solid '+col+'"><div class="i-ico">'+ico+'</div><div class="i-label">'+label+'</div><div class="i-val">'+val+'</div></div>'; }
+  function peakDay(){ const d=(anData.daily||[]).slice().sort((a,b)=>b.cost-a.cost)[0]; return (d&&d.cost>0)?(d.day.slice(5)+' '+money4(d.cost)):'—'; }
+  function tabSummary(){
+    const bm = (anData.byModel || []), g = grand(), perf = anData.performance || {};
+    if(!bm.length) return emptyPanel();
+    const mostUsed = bm.slice().sort((a,b)=>b.calls-a.calls)[0];
+    const per1k = m => m.tokens ? m.cost/m.tokens*1000 : Infinity;
+    const cheapest = bm.reduce((a,b)=> per1k(b)<per1k(a)?b:a);
+    const dearest = bm.slice().sort((a,b)=>b.cost-a.cost)[0];
+    const withLat = bm.filter(m=>m.avgLatencyMs!=null);
+    const fastest = withLat.length ? withLat.reduce((a,b)=>b.avgLatencyMs<a.avgLatencyMs?b:a) : null;
+    const slowest = withLat.length ? withLat.reduce((a,b)=>b.avgLatencyMs>a.avgLatencyMs?b:a) : null;
+    const byMode = anData.byMode||[], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
+    const m2pct = totMode ? Math.round((m2?m2.calls:0)/totMode*100) : 0;
+    const mostPct = g.calls ? Math.round(mostUsed.calls/g.calls*100) : 0;
+    const anomalies = (anData.messages||[]).filter(r=> r.finish_reason && r.finish_reason!=='stop' && r.finish_reason!=='end_turn').length;
+    let para = 'Across the last 30 days, <b>'+esc(shortModel(mostUsed.model))+'</b> was the most-used model, handling <b>'+mostPct+'%</b> of '+fmtInt(g.calls)+' calls and <b>'+compact(mostUsed.tokens)+'</b> tokens at <b>'+money4(mostUsed.cost)+'</b>. ';
+    para += 'The most cost-efficient model was <b>'+esc(shortModel(cheapest.model))+'</b> at <b>'+money4(per1k(cheapest))+'</b> per 1K tokens. ';
+    if(fastest) para += 'Average model latency was <b>'+fmtMs(perf.avgLatencyMs)+'</b>, fastest <b>'+esc(shortModel(fastest.model))+'</b> ('+fmtMs(fastest.avgLatencyMs)+'). ';
+    para += 'Mode 2 accounted for <b>'+m2pct+'%</b> of tagged calls. Total spend: <b>'+money(g.cost)+'</b> across '+fmtInt(g.calls)+' calls.';
+    let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-brain"></i> Auto insight (last 30 days)</div><p class="sum-para">'+para+'</p>';
+    h += '<div class="insight-grid">' +
+      insight('🏆','#A855F7','Most used', modelBadge(mostUsed.model)) +
+      insight('💰','#EF4444','Highest cost', modelBadge(dearest.model)+' '+money4(dearest.cost)) +
+      insight('💸','#22C55E','Most efficient', modelBadge(cheapest.model)) +
+      insight('⚡','#F97316','Fastest avg', fastest?(esc(shortModel(fastest.model))+' '+fmtMs(fastest.avgLatencyMs)):'—') +
+      insight('🐢','#64748B','Slowest avg', slowest?(esc(shortModel(slowest.model))+' '+fmtMs(slowest.avgLatencyMs)):'—') +
+      insight('🔥','#EC4899','Peak day', peakDay()) +
+      insight('🧮','#3B82F6','Avg cost/msg', money4(g.calls?g.cost/g.calls:0)) +
+      insight('⚠️','#C99A2C','Non-stop finishes', fmtInt(anomalies)) +
+    '</div></div>';
+    return h;
+  }
+
+  function emptyPanel(msg){ return '<div class="panel an-panel" style="margin:0 auto;"><div class="an-empty">'+(msg||'No usage recorded yet.')+'</div></div>'; }
+
+  // ── Export ──
+  function download(name, content, mime){
+    const blob = new Blob([content], { type: mime }), url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+  function exportJson(){ download('usage-log.json', JSON.stringify(filteredLogRows(), null, 2), 'application/json'); }
+  function exportCsv(){
+    const rows = filteredLogRows(), cols = ['created_at','model','phase','mode','session_id','prompt_tokens','completion_tokens','total_tokens','cost','latency_ms','finish_reason'];
+    const cell = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+    download('usage-log.csv', [cols.join(',')].concat(rows.map(r=>cols.map(c=>cell(r[c])).join(','))).join('\n'), 'text/csv');
+  }
+
+  // ── Dashboard shell + per-tab wiring ──
+  const TAB_RENDER = { overview:tabOverview, models:tabModels, overtime:tabOverTime, comparison:tabComparison, log:tabLog, summary:tabSummary };
+  function renderAnTab(){
+    const body = document.getElementById('anTabBody'); if(!body) return;
+    body.innerHTML = (TAB_RENDER[anTab] || tabOverview)();
+    wireAnTab();
+  }
+  function wireAnTab(){
+    if(anTab === 'overtime'){
+      document.querySelectorAll('.range-tabs button').forEach(b => b.addEventListener('click', ()=>{ otRange = Number(b.dataset.range); renderAnTab(); }));
+      document.querySelectorAll('.legend .lg').forEach(b => b.addEventListener('click', ()=>{ const mo = decodeURIComponent(b.dataset.mo); otHidden[mo] = !otHidden[mo]; renderAnTab(); }));
+    } else if(anTab === 'log'){
+      const ms = document.getElementById('lgModel'); if(ms) ms.addEventListener('change', ()=>{ logFilter.model = ms.value; renderAnTab(); });
+      const md = document.getElementById('lgMode'); if(md) md.addEventListener('change', ()=>{ logFilter.mode = md.value; renderAnTab(); });
+      const ss = document.getElementById('lgSession'); if(ss) ss.addEventListener('change', ()=>{ logFilter.session = ss.value.trim(); renderAnTab(); });
+      document.querySelectorAll('.an-table.sortable th[data-sort]').forEach(th => th.addEventListener('click', ()=>{
+        const k = th.dataset.sort; if(logSort.key===k) logSort.dir = logSort.dir==='asc'?'desc':'asc'; else { logSort.key = k; logSort.dir = 'desc'; } renderAnTab();
+      }));
+      document.querySelectorAll('.log-row').forEach(tr => tr.addEventListener('click', ()=>{ const d = document.querySelector('.log-detail[data-detail="'+tr.dataset.idx+'"]'); if(d) d.classList.toggle('hidden'); }));
+      const csv = document.getElementById('lgCsv'); if(csv) csv.addEventListener('click', exportCsv);
+      const js = document.getElementById('lgJson'); if(js) js.addEventListener('click', exportJson);
+    }
+  }
   function renderAnalytics(a){
-    const t = a.totals || {};
-    const blank = { cost:0, tokens:0, calls:0 };
-    let html = '';
-
+    anData = a;
+    let warn = '';
     if(a.needsMigration){
-      html += '<div class="an-warn"><b>Usage table not found.</b> Run the <code>usage_events</code> migration in Supabase (the SQL was provided), then refresh. ' +
-        'New AI calls will start recording automatically once the table exists.</div>';
+      warn = '<div class="an-warn"><b>Usage table needs the new columns.</b> Run the latest <code>usage_events</code> migration (adds session_id, mode, latency_ms, finish_reason) in Supabase, then refresh. New AI calls record automatically once it exists.</div>';
     }
-
-    html += '<div class="stat-grid">' +
-      statCard('Today', t.today || blank) +
-      statCard('Yesterday', t.yesterday || blank) +
-      statCard('Last 7 days', t.last7 || blank) +
-      statCard('Last 30 days', t.last30 || blank) +
-    '</div>';
-
-    html += '<div class="panel an-panel" style="margin:0 auto 20px;">' +
-      '<div class="section-label"><i class="fas fa-chart-column"></i> Daily spend (last 30 days)</div>' +
-      ((a.daily && a.daily.some(d => d.cost > 0)) ? renderChart(a.daily) : '<div class="an-empty">No usage recorded yet.</div>') +
-    '</div>';
-
-    const byModel = a.byModel || [];
-    html += '<div class="panel an-panel" style="margin:0 auto 20px;">' +
-      '<div class="section-label"><i class="fas fa-robot"></i> By model (last 30 days)</div>';
-    if(!byModel.length){
-      html += '<div class="an-empty">No usage recorded yet.</div>';
-    } else {
-      html += '<table class="an-table"><thead><tr>' +
-        '<th>Model</th><th class="num">Calls</th><th class="num">Input</th><th class="num">Output</th><th class="num">Total tokens</th><th class="num">Cost</th>' +
-        '</tr></thead><tbody>' +
-        byModel.map(m => '<tr>' +
-          '<td class="mdl" title="' + esc(m.model) + '">' + esc(shortModel(m.model)) + '</td>' +
-          '<td class="num">' + (m.calls || 0) + '</td>' +
-          '<td class="num">' + compact(m.prompt_tokens) + '</td>' +
-          '<td class="num">' + compact(m.completion_tokens) + '</td>' +
-          '<td class="num">' + compact(m.tokens) + '</td>' +
-          '<td class="num">' + money4(m.cost) + '</td>' +
-        '</tr>').join('') +
-        '</tbody></table>';
-    }
-    html += '</div>';
-
-    const byPhase = a.byPhase || [];
-    if(byPhase.length){
-      const PH = { converse:'Gather (chat)', analyze:'Finalize', image:'Image render', other:'Other' };
-      html += '<div class="panel an-panel" style="margin:0 auto;">' +
-        '<div class="section-label"><i class="fas fa-diagram-project"></i> By pipeline phase (last 30 days)</div>' +
-        '<table class="an-table"><thead><tr><th>Phase</th><th class="num">Calls</th><th class="num">Total tokens</th><th class="num">Cost</th></tr></thead><tbody>' +
-        byPhase.map(p => '<tr>' +
-          '<td class="mdl">' + esc(PH[p.phase] || p.phase) + '</td>' +
-          '<td class="num">' + (p.calls || 0) + '</td>' +
-          '<td class="num">' + compact(p.tokens) + '</td>' +
-          '<td class="num">' + money4(p.cost) + '</td>' +
-        '</tr>').join('') +
-        '</tbody></table></div>';
-    }
-
-    anBody.innerHTML = html;
+    const nav = '<div class="an-tabs">' + AN_TABS.map(([k,l,ic]) => '<button class="an-tab'+(anTab===k?' active':'')+'" data-an="'+k+'"><i class="fas '+ic+'"></i>'+l+'</button>').join('') + '</div>';
+    anBody.innerHTML = warn + nav + '<div id="anTabBody"></div>';
+    anBody.querySelectorAll('.an-tab').forEach(b => b.addEventListener('click', ()=>{ anTab = b.dataset.an; renderAnalytics(anData); }));
+    renderAnTab();
   }
 
   async function loadAnalytics(){

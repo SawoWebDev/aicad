@@ -909,7 +909,7 @@ ${REFERENCE_TEMPLATE}`;
     const resp = await fetch(SAWO_API_BASE + '/api/openrouter?type=chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, systemPrompt, phase: phase || 'converse' })
+      body: JSON.stringify({ messages, systemPrompt, phase: phase || 'converse', sessionId })
     });
     const raw = await resp.text();
     let data;
@@ -926,7 +926,7 @@ ${REFERENCE_TEMPLATE}`;
     const resp = await fetch(SAWO_API_BASE + '/api/openrouter?type=image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: fullPrompt })
+      body: JSON.stringify({ prompt: fullPrompt, sessionId })
     });
     const raw = await resp.text();
     let data;

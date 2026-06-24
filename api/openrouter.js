@@ -19,7 +19,7 @@ const MAX_CONVERSE_MESSAGES = 16;
 // Record one OpenRouter call's token/cost usage. Best-effort: a telemetry
 // failure (e.g. the usage_events table not migrated yet) must never break the
 // user-facing response, so all errors are swallowed.
-async function logUsage({ model, phase, usage }) {
+async function logUsage({ model, phase, usage, sessionId, mode, latencyMs, finishReason }) {
   try {
     if (!usage) return;
     const prompt = usage.prompt_tokens || 0;
@@ -32,6 +32,10 @@ async function logUsage({ model, phase, usage }) {
       total_tokens: usage.total_tokens || (prompt + completion),
       // OpenRouter returns the real USD cost when `usage:{include:true}` is sent.
       cost: typeof usage.cost === 'number' ? usage.cost : 0,
+      session_id: sessionId || null,
+      mode: mode != null ? Number(mode) : null,
+      latency_ms: latencyMs != null ? Math.round(latencyMs) : null,
+      finish_reason: finishReason || null,
     });
   } catch (e) {
     console.error('[usage] log failed:', e?.message || e);
@@ -146,9 +150,10 @@ export default async function handler(req, res) {
     };
 
     if (type === 'chat') {
-      const { messages, systemPrompt, phase } = body;
+      const { messages, systemPrompt, phase, sessionId } = body;
       if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages[] required' });
       const phaseResolved = phase === 'analyze' ? 'analyze' : 'converse';
+      const mode = Number(settings.pipeline_mode) || 1;
       const model = modelForPhase(settings, phaseResolved);
       // Only role/content go upstream. Messages may carry extra fields (e.g.
       // a per-message `model` slug used by the admin log viewer) that must
@@ -158,6 +163,7 @@ export default async function handler(req, res) {
       if (phaseResolved === 'converse' && outMessages.length > MAX_CONVERSE_MESSAGES) {
         outMessages = outMessages.slice(-MAX_CONVERSE_MESSAGES);
       }
+      const t0 = Date.now();
       const upstream = await fetch(OPENROUTER_URL, {
         method: 'POST',
         headers,
@@ -168,20 +174,26 @@ export default async function handler(req, res) {
           usage: { include: true },
         }),
       });
+      const latencyMs = Date.now() - t0;
       const raw = await upstream.text();
       let data; try { data = JSON.parse(raw); } catch { return res.status(502).json({ error: 'Non-JSON response from OpenRouter (HTTP ' + upstream.status + ')' }); }
       if (!upstream.ok) return res.status(upstream.status).json({ error: data?.error?.message || ('HTTP ' + upstream.status) });
       const content = data.choices?.[0]?.message?.content;
       if (!content) return res.status(502).json({ error: 'No reply content returned.' });
-      await logUsage({ model, phase: phaseResolved, usage: data.usage });
+      await logUsage({
+        model, phase: phaseResolved, usage: data.usage, sessionId, mode,
+        latencyMs, finishReason: data.choices?.[0]?.finish_reason,
+      });
       // Report the model actually used so the UI can label the reply accurately
       // (no dependence on a separately-fetched config that may not have loaded).
       return res.status(200).json({ content: typeof content === 'string' ? content : JSON.stringify(content), model });
     }
 
     if (type === 'image') {
-      const { prompt } = body;
+      const { prompt, sessionId } = body;
       if (!prompt) return res.status(400).json({ error: 'prompt required' });
+      const mode = Number(settings.pipeline_mode) || 1;
+      const t0 = Date.now();
       const upstream = await fetch(OPENROUTER_URL, {
         method: 'POST',
         headers,
@@ -196,10 +208,14 @@ export default async function handler(req, res) {
           usage: { include: true },
         }),
       });
+      const latencyMs = Date.now() - t0;
       const raw = await upstream.text();
       let data; try { data = JSON.parse(raw); } catch { return res.status(502).json({ error: 'Non-JSON response from OpenRouter (HTTP ' + upstream.status + ')' }); }
       if (!upstream.ok) return res.status(upstream.status).json({ error: data?.error?.message || ('HTTP ' + upstream.status) });
-      await logUsage({ model: settings.image_model, phase: 'image', usage: data.usage });
+      await logUsage({
+        model: settings.image_model, phase: 'image', usage: data.usage, sessionId, mode,
+        latencyMs, finishReason: data.choices?.[0]?.finish_reason,
+      });
       const imageUrl = extractImageUrl(data);
       if (!imageUrl) return res.status(502).json({ error: 'Model responded but no image was found. Try rephrasing the brief.' });
       return res.status(200).json({ imageUrl });
