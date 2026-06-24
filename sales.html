@@ -194,6 +194,17 @@
 <script>
 (function(){
   const esc = CMS.esc, fmt = CMS.fmt;
+  // Escape, then render the same tiny safe markdown subset the chat uses so
+  // **bold** details show as real bold in the logs too. Only <strong>/<em> are
+  // injected into already-escaped text, so this stays XSS-safe.
+  function richText(text){
+    let h = esc(String(text == null ? '' : text));
+    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+         .replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    h = h.replace(/(^|[^*])\*(?!\*)([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    h = h.replace(/\*/g, '');
+    return h;
+  }
   const countPill = document.getElementById('countPill');
   const refreshBtn = document.getElementById('refreshBtn');
   const sessionList = document.getElementById('sessionList');
@@ -410,7 +421,7 @@
         if(isAdmin && role === 'assistant' && m.model){
           tag = '<span class="ai-tag">AI · ' + esc(friendlyModel(m.model)) + '</span>';
         }
-        html += '<div class="msg ' + role + '"><span class="who">' + who + tag + '</span>' + esc(content) + '</div>';
+        html += '<div class="msg ' + role + '"><span class="who">' + who + tag + '</span>' + richText(content) + '</div>';
       });
     }
     html += '</div>';
