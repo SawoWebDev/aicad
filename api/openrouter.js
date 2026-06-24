@@ -19,7 +19,7 @@ const MAX_CONVERSE_MESSAGES = 16;
 // Record one OpenRouter call's token/cost usage. Best-effort: a telemetry
 // failure (e.g. the usage_events table not migrated yet) must never break the
 // user-facing response, so all errors are swallowed.
-async function logUsage({ model, phase, usage, sessionId, mode, latencyMs, finishReason }) {
+async function logUsage({ model, phase, usage, sessionId, mode, latencyMs, finishReason, provider }) {
   try {
     if (!usage) return;
     const prompt = usage.prompt_tokens || 0;
@@ -36,6 +36,7 @@ async function logUsage({ model, phase, usage, sessionId, mode, latencyMs, finis
       mode: mode != null ? Number(mode) : null,
       latency_ms: latencyMs != null ? Math.round(latencyMs) : null,
       finish_reason: finishReason || null,
+      provider: provider || null,
     });
   } catch (e) {
     console.error('[usage] log failed:', e?.message || e);
@@ -182,7 +183,7 @@ export default async function handler(req, res) {
       if (!content) return res.status(502).json({ error: 'No reply content returned.' });
       await logUsage({
         model, phase: phaseResolved, usage: data.usage, sessionId, mode,
-        latencyMs, finishReason: data.choices?.[0]?.finish_reason,
+        latencyMs, finishReason: data.choices?.[0]?.finish_reason, provider: data.provider,
       });
       // Report the model actually used so the UI can label the reply accurately
       // (no dependence on a separately-fetched config that may not have loaded).
@@ -214,7 +215,7 @@ export default async function handler(req, res) {
       if (!upstream.ok) return res.status(upstream.status).json({ error: data?.error?.message || ('HTTP ' + upstream.status) });
       await logUsage({
         model: settings.image_model, phase: 'image', usage: data.usage, sessionId, mode,
-        latencyMs, finishReason: data.choices?.[0]?.finish_reason,
+        latencyMs, finishReason: data.choices?.[0]?.finish_reason, provider: data.provider,
       });
       const imageUrl = extractImageUrl(data);
       if (!imageUrl) return res.status(502).json({ error: 'Model responded but no image was found. Try rephrasing the brief.' });

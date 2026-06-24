@@ -423,7 +423,7 @@
       html += '<div class="txtblock-wrap">' +
         '<div class="txtblock-head">' +
           '<button class="txtblock-toggle" id="txtToggle"><i class="fas fa-file-lines"></i> Generated txt block</button>' +
-          '<button class="txtblock-copy" id="txtCopy"><i class="fas fa-copy"></i> Copy</button>' +
+          '<button class="txtblock-copy" id="txtCopy" style="display:none;"><i class="fas fa-copy"></i> Copy</button>' +
         '</div>' +
         '<pre class="txtblock" id="txtPre" style="display:none;">' + esc(s.txt_block) + '</pre></div>';
     }
@@ -493,7 +493,10 @@
     const toggle = document.getElementById('txtToggle');
     if(toggle) toggle.addEventListener('click', () => {
       const pre = document.getElementById('txtPre');
-      pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
+      const shown = pre.style.display === 'none';
+      pre.style.display = shown ? 'block' : 'none';
+      const copy = document.getElementById('txtCopy');
+      if(copy) copy.style.display = shown ? 'inline-flex' : 'none';
     });
     // Copy the full generated prompt (the raw txt block) to the clipboard.
     const txtCopy = document.getElementById('txtCopy');

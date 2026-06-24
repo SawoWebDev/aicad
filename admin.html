@@ -255,6 +255,27 @@
   .insight .i-ico{ font-size:1rem; margin-bottom:6px; }
   .insight .i-label{ font-size:0.58rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); }
   .insight .i-val{ font-size:0.86rem; font-weight:700; color:var(--brown-deep); margin-top:3px; }
+  /* ── range selector ── */
+  .an-range{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
+  .an-range button{
+    border:1px solid var(--line); background:#fff; color:var(--text-dim); font-family:'Montserrat',sans-serif; font-weight:600;
+    font-size:0.72rem; padding:7px 13px; border-radius:9px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.16s;
+  }
+  .an-range button i{ font-size:0.7rem; opacity:0.7; }
+  .an-range button:hover{ border-color:var(--brown-mid); color:var(--brown-deep); }
+  .an-range button.active{ background:linear-gradient(135deg,var(--brown-deep),var(--brown-mid)); color:#fff; border-color:transparent; }
+  .an-range button.active i{ opacity:1; }
+  /* ── log unit suffix ── */
+  .an-table .u{ font-size:0.62rem; color:var(--text-dim); font-weight:400; }
+  /* ── mode comparison ── */
+  .mode-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:680px){ .mode-grid{ grid-template-columns:1fr; } }
+  .mode-col{ border:1px solid var(--line); border-radius:12px; padding:16px 18px; background:#fbf8f4; }
+  .mode-col .mc-title{ font-size:0.82rem; font-weight:700; color:var(--brown-deep); margin-bottom:12px; }
+  .mode-stat{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); font-size:0.8rem; }
+  .mode-stat span{ color:var(--text-dim); } .mode-stat b{ color:var(--black); font-variant-numeric:tabular-nums; }
+  .mode-model{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 0; font-size:0.78rem; }
+  .mode-model .mm-meta{ font-size:0.68rem; color:var(--text-dim); font-variant-numeric:tabular-nums; }
 </style>
 </head>
 <body>
@@ -795,6 +816,9 @@
   const anBody = document.getElementById('anBody');
   const money = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money4 = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  // Full per-call cost — keeps tiny costs precise (e.g. $0.0000715) instead of
+  // rounding to $0.0001, matching OpenRouter's activity view.
+  const costFull = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 7 });
   const compact = (n) => {
     n = Number(n) || 0;
     if(n >= 1e9) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
@@ -824,19 +848,29 @@
     return (_colorCache[slug] = c);
   }
   function modelBadge(slug){ return '<span class="mbadge"><span class="dot" style="background:' + colorFor(slug) + '"></span>' + esc(shortModel(slug)) + '</span>'; }
+  function providerBadge(name){ if(!name) return '<span style="color:var(--text-dim)">—</span>'; return '<span class="mbadge"><span class="dot" style="background:' + colorFor('prov:' + name) + '"></span>' + esc(name) + '</span>'; }
   const PHASE_LABEL = { converse:'Gather', analyze:'Finalize', image:'Image', other:'Other' };
   const MODE_LABEL = (m) => (m == null || m === 'unknown') ? '—' : ('Mode ' + m);
+  // Throughput proxy: output tokens / round-trip seconds (we measure total latency,
+  // so this trends a bit under OpenRouter's generation-time figure but is comparable).
+  function speedFor(r){ const lat = Number(r.latency_ms); const out = Number(r.completion_tokens) || 0; if(!lat || lat <= 0) return null; return out / (lat / 1000); }
 
   // ── Dashboard state ──
-  let anData = null, anTab = 'overview', otRange = 30, otHidden = {};
+  let anData = null, anTab = 'overview', otHidden = {}, anRange = '30';
   let logSort = { key:'created_at', dir:'desc' }, logFilter = { model:'', mode:'', session:'' };
   const AN_TABS = [
     ['overview','Overview','fa-gauge-high'], ['models','Models','fa-robot'],
     ['overtime','Over Time','fa-chart-line'], ['comparison','Comparison','fa-scale-balanced'],
-    ['log','Message Log','fa-list'], ['summary','AI Summary','fa-brain'],
+    ['log','Message Log','fa-list'],
   ];
+  // Range selector options: [value, short label]. 'all' fetches everything.
+  const RANGE_OPTS = [['1','24h'], ['7','7 days'], ['30','30 days'], ['90','3 months'], ['180','6 months'], ['365','1 year'], ['all','All']];
 
+  // Window totals come from the server (authoritative for the selected range);
+  // fall back to summing byModel if absent.
   function grand(){
+    const w = anData.windowTotal;
+    if(w && typeof w.calls === 'number') return { calls:w.calls||0, cost:w.cost||0, tokens:w.tokens||0, input:w.input||0, output:w.output||0 };
     const bm = anData.byModel || [];
     return {
       calls: bm.reduce((s,m)=>s+(m.calls||0),0), cost: bm.reduce((s,m)=>s+(m.cost||0),0),
@@ -850,29 +884,33 @@
   }
   function renderChart(daily){
     const max = Math.max(...daily.map(d => d.cost), 0.0000001);
-    const bars = daily.map(d => '<div class="bar-col"><span class="tip">' + d.day.slice(5) + ' · ' + money4(d.cost) + ' · ' + compact(d.tokens) + ' tok</span><div class="bar" style="height:' + Math.round((d.cost/max)*100) + '%"></div></div>').join('');
+    const bars = daily.map(d => '<div class="bar-col"><span class="tip">' + d.day.slice(5) + ' · ' + costFull(d.cost) + ' · ' + compact(d.tokens) + ' tok</span><div class="bar" style="height:' + Math.round((d.cost/max)*100) + '%"></div></div>').join('');
     const axis = daily.map((d, i) => '<span>' + ((i % 5 === 0 || i === daily.length - 1) ? d.day.slice(5) : '') + '</span>').join('');
     return '<div class="chart">' + bars + '</div><div class="chart-axis">' + axis + '</div>';
   }
 
-  // ── Tab 1: Overview ──
+  // ── Tab 1: Overview (range selector + headline cards + embedded AI summary) ──
+  function rangeLabel(){ const o = RANGE_OPTS.find(x=>x[0]===String(anRange)); return o ? o[1] : (anRange + ' days'); }
   function tabOverview(){
-    const t = anData.totals || {}, g = grand(), perf = anData.performance || {};
+    const g = grand(), perf = anData.performance || {};
     const bm = (anData.byModel || []);
-    if(!bm.length) return emptyPanel();
+    let h = '<div class="an-range" id="anRange">' + RANGE_OPTS.map(([v,l]) => '<button class="' + (String(anRange)===v?'active':'') + '" data-range="' + v + '"><i class="fas fa-calendar-day"></i>' + l + '</button>').join('') + '</div>';
+    if(!bm.length){ return h + emptyPanel('No usage recorded for ' + rangeLabel().toLowerCase() + '.'); }
     const mostUsed = bm.slice().sort((a,b)=>b.calls-a.calls)[0];
+    const dearest = bm.slice().sort((a,b)=>b.cost-a.cost)[0];
     const byMode = anData.byMode || [], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
     const m2pct = totMode ? Math.round((m2?m2.calls:0)/totMode*100) : 0;
-    let h = '<div class="stat-grid">';
-    h += card('Messages', fmtInt(g.calls), fmtInt((t.today||{}).calls||0) + ' today · ' + fmtInt((t.last7||{}).calls||0) + ' this week');
+    h += '<div class="stat-grid">';
+    h += card('Messages', fmtInt(g.calls), rangeLabel() + (m2pct?(' · ' + m2pct + '% Mode 2'):''), '#AF8564');
     h += card('Total tokens', compact(g.tokens), fmtInt(g.input) + ' in · ' + fmtInt(g.output) + ' out', '#3B82F6');
     h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E');
-    h += card('Models used', fmtInt(bm.length), mostUsed ? ('top ' + modelBadge(mostUsed.model)) : '—', '#A855F7');
-    h += card('Avg latency', fmtMs(perf.avgLatencyMs), perf.fastest ? ('fastest ' + esc(shortModel(perf.fastest.model)) + ' ' + fmtMs(perf.fastest.ms)) : '—', '#F97316');
-    h += card('Mode 2 share', m2pct + '%', fmtInt(totMode) + ' calls tagged', '#8B5CF6');
+    h += card('Most used model', modelBadge(mostUsed.model), fmtInt(mostUsed.calls) + ' calls · ' + compact(mostUsed.tokens) + ' tok', colorFor(mostUsed.model));
+    h += card('Highest cost model', modelBadge(dearest.model), costFull(dearest.cost) + ' total', colorFor(dearest.model));
+    h += card('Models used', fmtInt(bm.length), perf.avgLatencyMs!=null ? ('avg ' + fmtMs(perf.avgLatencyMs) + ' latency') : 'latency: not recorded yet', '#A855F7');
     h += '</div>';
-    h += '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-chart-column"></i> Daily spend (last 30 days)</div>' +
-      ((anData.daily && anData.daily.some(d=>d.cost>0)) ? renderChart(anData.daily) : '<div class="an-empty">No usage recorded yet.</div>') + '</div>';
+    h += '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-chart-column"></i> Daily spend (' + rangeLabel() + ')</div>' +
+      ((anData.daily && anData.daily.some(d=>d.cost>0)) ? renderChart(anData.daily) : '<div class="an-empty">No spend in this window.</div>') + '</div>';
+    h += summaryPanel();
     return h;
   }
 
@@ -889,7 +927,7 @@
     h += bm.map(m => '<div class="mcard" style="border-left-color:' + colorFor(m.model) + '">' +
       '<div class="mc-head"><div><div class="mc-name">' + modelBadge(m.model) + '</div><div class="mc-slug">' + esc(m.model) + '</div></div><div class="mc-slug">last used ' + esc(fmt(m.lastUsed)) + '</div></div>' +
       '<div class="mc-grid">' + mcStat('Messages', fmtInt(m.calls)) + mcStat('Input', compact(m.prompt_tokens)) + mcStat('Output', compact(m.completion_tokens)) + mcStat('Total tokens', compact(m.tokens)) +
-        mcStat('Cost', money4(m.cost)) + mcStat('% of cost', Math.round(m.cost/totCost*100) + '%') + mcStat('Avg latency', fmtMs(m.avgLatencyMs)) + mcStat('Avg tokens/msg', m.calls?compact(Math.round(m.tokens/m.calls)):'—') +
+        mcStat('Cost', costFull(m.cost)) + mcStat('% of cost', Math.round(m.cost/totCost*100) + '%') + mcStat('Avg latency', fmtMs(m.avgLatencyMs)) + mcStat('Avg tokens/msg', m.calls?compact(Math.round(m.tokens/m.calls)):'—') +
       '</div></div>').join('');
     return h;
   }
@@ -924,11 +962,10 @@
     return '<div class="legend">' + models.map(mo => '<span class="lg' + (otHidden[mo]?' off':'') + '" data-mo="' + encodeURIComponent(mo) + '"><span class="sw" style="background:' + colorFor(mo) + '"></span>' + esc(shortModel(mo)) + '</span>').join('') + '</div>';
   }
   function tabOverTime(){
-    const daily = (anData.daily || []).slice(-otRange), dbm = (anData.dailyByModel || []).slice(-otRange);
+    const daily = (anData.daily || []), dbm = (anData.dailyByModel || []);
     const models = (anData.byModel || []).map(m=>m.model);
-    if(!daily.some(d=>d.cost>0)) return emptyPanel();
-    const rt = '<div class="range-tabs">' + [7,14,30].map(r => '<button class="' + (otRange===r?'active':'') + '" data-range="' + r + '">' + r + 'd</button>').join('') + '</div>';
-    let h = '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label" style="display:flex;align-items:center"><i class="fas fa-coins"></i> Daily spend ' + rt + '</div>' + renderChart(daily) + '</div>';
+    if(!daily.some(d=>d.cost>0)) return emptyPanel('No spend in this window. Use the range selector on the Overview tab.');
+    let h = '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-coins"></i> Daily spend (' + rangeLabel() + ')</div>' + renderChart(daily) + '</div>';
     h += '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-chart-area"></i> Cumulative cost</div>' + cumulativeSvg(daily) + '</div>';
     h += '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-layer-group"></i> Tokens per day by model</div>' + stackedChart(dbm, models) + legend(models) + '</div>';
     return h;
@@ -953,6 +990,40 @@
     const leg = '<div class="radar-legend">' + models.map(m => '<span class="rl"><span class="sw" style="background:'+colorFor(m.model)+'"></span>'+esc(shortModel(m.model))+'</span>').join('') + '</div>';
     return '<div class="radar-wrap">' + svg + leg + '</div>';
   }
+  // Mode 1 vs Mode 2 side-by-side: consumption, spend, and which models ran under each.
+  function modeCompare(){
+    const mb = anData.modeBreakdown || {};
+    const m1 = mb['1'], m2 = mb['2'];
+    if(!m1 && !m2) return '';
+    const col = (x, label, accent) => {
+      if(!x) return '<div class="mode-col" style="border-top:3px solid '+accent+'"><div class="mc-title">'+label+'</div><div class="an-empty">No calls.</div></div>';
+      const models = (x.models||[]).slice().sort((a,b)=>b.cost-a.cost);
+      return '<div class="mode-col" style="border-top:3px solid '+accent+'">' +
+        '<div class="mc-title">'+label+'</div>' +
+        '<div class="mode-stat"><span>Calls</span><b>'+fmtInt(x.calls)+'</b></div>' +
+        '<div class="mode-stat"><span>Total tokens</span><b>'+compact(x.tokens)+'</b></div>' +
+        '<div class="mode-stat"><span>Input / Output</span><b>'+compact(x.input)+' / '+compact(x.output)+'</b></div>' +
+        '<div class="mode-stat"><span>Total cost</span><b>'+costFull(x.cost)+'</b></div>' +
+        '<div class="mode-stat"><span>Avg cost / msg</span><b>'+(x.calls?money4(x.cost/x.calls):'—')+'</b></div>' +
+        '<div class="mode-stat" style="border:none;display:block"><span style="display:block;margin-bottom:6px;">Models used</span>' +
+          models.map(mm=>'<div class="mode-model">'+modelBadge(mm.model)+'<span class="mm-meta">'+fmtInt(mm.calls)+' · '+costFull(mm.cost)+'</span></div>').join('') +
+        '</div></div>';
+    };
+    // Plain-language takeaway.
+    const c1 = m1?m1.cost:0, c2 = m2?m2.cost:0, k1 = m1?m1.calls:0, k2 = m2?m2.calls:0;
+    const avg1 = k1?c1/k1:0, avg2 = k2?c2/k2:0;
+    let verdict = '';
+    if(k1 && k2){
+      const cheaper = avg2 <= avg1 ? 'Mode 2' : 'Mode 1';
+      const pct = avg1 && avg2 ? Math.round(Math.abs(avg1-avg2)/Math.max(avg1,avg2)*100) : 0;
+      verdict = '<b>Mode 1</b> ran '+fmtInt(k1)+' calls at '+money4(avg1)+'/msg; <b>Mode 2</b> ran '+fmtInt(k2)+' calls at '+money4(avg2)+'/msg. ' +
+        '<b>'+cheaper+'</b> is cheaper per message'+(pct?(' by ~'+pct+'%'):'')+'. Mode 2 splits work across a cheap gather model plus the finalize/image models, so its per-call average reflects that mix.';
+    } else if(k2 && !k1){ verdict = 'All recorded calls ran in <b>Mode 2</b> (cheap gather → finalize → image). Switch to Mode 1 to compare a single-model pipeline.'; }
+    else if(k1 && !k2){ verdict = 'All recorded calls ran in <b>Mode 1</b> (one model does everything). Switch to Mode 2 to compare the cost-split pipeline.'; }
+    return '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-code-compare"></i> Mode 1 vs Mode 2</div>' +
+      '<div class="mode-grid">' + col(m1,'Mode 1 · Single model','#C99A2C') + col(m2,'Mode 2 · 3-model pipeline','#8B5CF6') + '</div>' +
+      (verdict ? '<p class="sum-para" style="margin-top:16px;font-size:0.84rem;">'+verdict+'</p>' : '') + '</div>';
+  }
   function tabComparison(){
     const bm = (anData.byModel || []).slice().sort((a,b)=>b.cost-a.cost);
     if(!bm.length) return emptyPanel();
@@ -962,10 +1033,11 @@
     const fastest = withLat.length ? withLat.reduce((a,b)=> b.avgLatencyMs<a.avgLatencyMs?b:a) : null;
     const rows = [
       ['Messages', m=>fmtInt(m.calls), null], ['Input tokens', m=>compact(m.prompt_tokens), null], ['Output tokens', m=>compact(m.completion_tokens), null],
-      ['Total tokens', m=>compact(m.tokens), null], ['Total cost', m=>money4(m.cost), null], ['Avg tokens/msg', m=>m.calls?compact(Math.round(m.tokens/m.calls)):'—', null],
+      ['Total tokens', m=>compact(m.tokens), null], ['Total cost', m=>costFull(m.cost), null], ['Avg tokens/msg', m=>m.calls?compact(Math.round(m.tokens/m.calls)):'—', null],
       ['Avg cost/msg', m=>m.calls?money4(m.cost/m.calls):'—', null], ['Cost / 1K tokens', m=>m.tokens?money4(per1k(m)):'—', m=>m===cheapest], ['Avg latency', m=>fmtMs(m.avgLatencyMs), m=>fastest&&m===fastest],
     ];
-    let h = '<div class="panel an-panel" style="margin:0 auto 20px;overflow-x:auto;"><div class="section-label"><i class="fas fa-scale-balanced"></i> Model comparison</div>' +
+    let h = modeCompare();
+    h += '<div class="panel an-panel" style="margin:0 auto 20px;overflow-x:auto;"><div class="section-label"><i class="fas fa-scale-balanced"></i> Model comparison</div>' +
       '<table class="an-table"><thead><tr><th>Metric</th>' + bm.map(m=>'<th class="num">'+modelBadge(m.model)+'</th>').join('') + '</tr></thead><tbody>' +
       rows.map(([label,fn,win]) => '<tr><td class="mdl">'+label+'</td>' + bm.map(m=>'<td class="num'+(win&&win(m)?' cmp-win':'')+'">'+fn(m)+'</td>').join('') + '</tr>').join('') +
       '</tbody></table></div>';
@@ -985,13 +1057,14 @@
     if(!all.length) return emptyPanel('No messages recorded yet.');
     const models = [...new Set(all.map(r=>r.model))];
     let rows = filteredLogRows().slice().sort((a,b)=>{
-      const k = logSort.key; let av = a[k], bv = b[k];
-      if(k==='created_at' || k==='model' || k==='phase' || k==='finish_reason'){ av = av||''; bv = bv||''; }
-      else { av = Number(av)||0; bv = Number(bv)||0; }
+      const k = logSort.key; let av, bv;
+      if(k==='speed'){ av = speedFor(a)||0; bv = speedFor(b)||0; }
+      else { av = a[k]; bv = b[k]; if(k==='created_at' || k==='model' || k==='provider'){ av = av||''; bv = bv||''; } else { av = Number(av)||0; bv = Number(bv)||0; } }
       const r = av<bv?-1:av>bv?1:0; return logSort.dir==='asc'?r:-r;
     });
-    const cols = [['created_at','Time'],['model','Model'],['phase','Phase'],['mode','Mode'],['prompt_tokens','In'],['completion_tokens','Out'],['total_tokens','Total'],['cost','Cost'],['latency_ms','Latency'],['finish_reason','Finish']];
-    const numCols = ['prompt_tokens','completion_tokens','total_tokens','cost','latency_ms'];
+    // Columns mirror OpenRouter's activity view: Date · Model · Provider · Input · Output · Cost · Speed.
+    const cols = [['created_at','Date'],['model','Model'],['provider','Provider'],['prompt_tokens','Input'],['completion_tokens','Output'],['cost','Cost'],['speed','Speed']];
+    const numCols = ['prompt_tokens','completion_tokens','cost','speed'];
     const arrow = k => logSort.key===k ? (logSort.dir==='asc'?'▲':'▼') : '';
     let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="log-toolbar">' +
       '<select id="lgModel"><option value="">All models</option>' + models.map(mo=>'<option value="'+esc(mo)+'"'+(logFilter.model===mo?' selected':'')+'>'+esc(shortModel(mo))+'</option>').join('') + '</select>' +
@@ -999,25 +1072,30 @@
       '<input id="lgSession" type="text" placeholder="session id…" value="'+esc(logFilter.session)+'"/>' +
       '<span class="spacer"></span><button class="exp-btn" id="lgCsv"><i class="fas fa-file-csv"></i> CSV</button><button class="exp-btn" id="lgJson"><i class="fas fa-file-code"></i> JSON</button></div>';
     h += '<div style="overflow-x:auto;"><table class="an-table sortable"><thead><tr>' + cols.map(([k,l])=>'<th data-sort="'+k+'" class="'+(numCols.includes(k)?'num':'')+'">'+l+' <span class="ar">'+arrow(k)+'</span></th>').join('') + '</tr></thead><tbody>';
-    h += rows.map((r,idx) => '<tr class="log-row" data-idx="'+idx+'">' +
-      '<td>'+esc(fmt(r.created_at))+'</td><td>'+modelBadge(r.model)+'</td>' +
-      '<td><span class="pill-phase">'+esc(PHASE_LABEL[r.phase]||r.phase||'—')+'</span></td>' +
-      '<td><span class="pill-mode">'+esc(MODE_LABEL(r.mode))+'</span></td>' +
-      '<td class="num">'+fmtInt(r.prompt_tokens)+'</td><td class="num">'+fmtInt(r.completion_tokens)+'</td><td class="num">'+fmtInt(r.total_tokens)+'</td>' +
-      '<td class="num">'+money4(r.cost)+'</td><td class="num">'+fmtMs(r.latency_ms)+'</td><td>'+esc(r.finish_reason||'—')+'</td></tr>' +
-      '<tr class="log-detail hidden" data-detail="'+idx+'"><td colspan="10">' +
-        '<span class="kv"><b>session</b> '+esc(r.session_id||'—')+'</span><span class="kv"><b>id</b> '+esc(String(r.id))+'</span><span class="kv"><b>model</b> '+esc(r.model)+'</span><span class="kv"><b>created</b> '+esc(r.created_at)+'</span>' +
-      '</td></tr>').join('');
-    h += '</tbody></table></div><div class="sc-sub" style="margin-top:10px;">Showing '+rows.length+' of '+all.length+' recent calls. Click a row for details.</div></div>';
+    h += rows.map((r,idx) => { const sp = speedFor(r);
+      return '<tr class="log-row" data-idx="'+idx+'">' +
+      '<td>'+esc(fmt(r.created_at))+'</td><td>'+modelBadge(r.model)+'</td><td>'+providerBadge(r.provider)+'</td>' +
+      '<td class="num">'+fmtInt(r.prompt_tokens)+' <span class="u">tok</span></td><td class="num">'+fmtInt(r.completion_tokens)+' <span class="u">tok</span></td>' +
+      '<td class="num">'+costFull(r.cost)+'</td><td class="num">'+(sp!=null?(sp.toFixed(1)+' <span class="u">tok/s</span>'):'—')+'</td></tr>' +
+      '<tr class="log-detail hidden" data-detail="'+idx+'"><td colspan="7">' +
+        '<span class="kv"><b>phase</b> '+esc(PHASE_LABEL[r.phase]||r.phase||'—')+'</span>' +
+        '<span class="kv"><b>mode</b> '+esc(MODE_LABEL(r.mode))+'</span>' +
+        '<span class="kv"><b>total</b> '+fmtInt(r.total_tokens)+' tok</span>' +
+        '<span class="kv"><b>latency</b> '+fmtMs(r.latency_ms)+'</span>' +
+        '<span class="kv"><b>finish</b> '+esc(r.finish_reason||'—')+'</span>' +
+        '<span class="kv"><b>session</b> '+esc(r.session_id||'—')+'</span>' +
+        '<span class="kv"><b>created</b> '+esc(r.created_at)+'</span>' +
+      '</td></tr>'; }).join('');
+    h += '</tbody></table></div><div class="sc-sub" style="margin-top:10px;">Showing '+rows.length+' of '+all.length+' recent calls. Click a row for phase, mode, latency &amp; session.</div></div>';
     return h;
   }
 
-  // ── Tab 6: AI Summary (computed locally) ──
+  // ── Auto AI summary (computed locally) — embedded at the bottom of Overview ──
   function insight(ico,col,label,val){ return '<div class="insight" style="border-left:4px solid '+col+'"><div class="i-ico">'+ico+'</div><div class="i-label">'+label+'</div><div class="i-val">'+val+'</div></div>'; }
-  function peakDay(){ const d=(anData.daily||[]).slice().sort((a,b)=>b.cost-a.cost)[0]; return (d&&d.cost>0)?(d.day.slice(5)+' '+money4(d.cost)):'—'; }
-  function tabSummary(){
+  function peakDay(){ const d=(anData.daily||[]).slice().sort((a,b)=>b.cost-a.cost)[0]; return (d&&d.cost>0)?(d.day.slice(5)+' '+costFull(d.cost)):'—'; }
+  function summaryPanel(){
     const bm = (anData.byModel || []), g = grand(), perf = anData.performance || {};
-    if(!bm.length) return emptyPanel();
+    if(!bm.length) return '';
     const mostUsed = bm.slice().sort((a,b)=>b.calls-a.calls)[0];
     const per1k = m => m.tokens ? m.cost/m.tokens*1000 : Infinity;
     const cheapest = bm.reduce((a,b)=> per1k(b)<per1k(a)?b:a);
@@ -1029,14 +1107,14 @@
     const m2pct = totMode ? Math.round((m2?m2.calls:0)/totMode*100) : 0;
     const mostPct = g.calls ? Math.round(mostUsed.calls/g.calls*100) : 0;
     const anomalies = (anData.messages||[]).filter(r=> r.finish_reason && r.finish_reason!=='stop' && r.finish_reason!=='end_turn').length;
-    let para = 'Across the last 30 days, <b>'+esc(shortModel(mostUsed.model))+'</b> was the most-used model, handling <b>'+mostPct+'%</b> of '+fmtInt(g.calls)+' calls and <b>'+compact(mostUsed.tokens)+'</b> tokens at <b>'+money4(mostUsed.cost)+'</b>. ';
+    let para = 'Over the selected window ('+rangeLabel().toLowerCase()+'), <b>'+esc(shortModel(mostUsed.model))+'</b> was the most-used model, handling <b>'+mostPct+'%</b> of '+fmtInt(g.calls)+' calls and <b>'+compact(mostUsed.tokens)+'</b> tokens at <b>'+costFull(mostUsed.cost)+'</b>. ';
     para += 'The most cost-efficient model was <b>'+esc(shortModel(cheapest.model))+'</b> at <b>'+money4(per1k(cheapest))+'</b> per 1K tokens. ';
     if(fastest) para += 'Average model latency was <b>'+fmtMs(perf.avgLatencyMs)+'</b>, fastest <b>'+esc(shortModel(fastest.model))+'</b> ('+fmtMs(fastest.avgLatencyMs)+'). ';
     para += 'Mode 2 accounted for <b>'+m2pct+'%</b> of tagged calls. Total spend: <b>'+money(g.cost)+'</b> across '+fmtInt(g.calls)+' calls.';
-    let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-brain"></i> Auto insight (last 30 days)</div><p class="sum-para">'+para+'</p>';
+    let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-brain"></i> Auto insight</div><p class="sum-para">'+para+'</p>';
     h += '<div class="insight-grid">' +
       insight('🏆','#A855F7','Most used', modelBadge(mostUsed.model)) +
-      insight('💰','#EF4444','Highest cost', modelBadge(dearest.model)+' '+money4(dearest.cost)) +
+      insight('💰','#EF4444','Highest cost', modelBadge(dearest.model)+' '+costFull(dearest.cost)) +
       insight('💸','#22C55E','Most efficient', modelBadge(cheapest.model)) +
       insight('⚡','#F97316','Fastest avg', fastest?(esc(shortModel(fastest.model))+' '+fmtMs(fastest.avgLatencyMs)):'—') +
       insight('🐢','#64748B','Slowest avg', slowest?(esc(shortModel(slowest.model))+' '+fmtMs(slowest.avgLatencyMs)):'—') +
@@ -1057,21 +1135,22 @@
   }
   function exportJson(){ download('usage-log.json', JSON.stringify(filteredLogRows(), null, 2), 'application/json'); }
   function exportCsv(){
-    const rows = filteredLogRows(), cols = ['created_at','model','phase','mode','session_id','prompt_tokens','completion_tokens','total_tokens','cost','latency_ms','finish_reason'];
+    const rows = filteredLogRows(), cols = ['created_at','model','provider','phase','mode','session_id','prompt_tokens','completion_tokens','total_tokens','cost','latency_ms','finish_reason'];
     const cell = v => { v = v==null?'':String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
     download('usage-log.csv', [cols.join(',')].concat(rows.map(r=>cols.map(c=>cell(r[c])).join(','))).join('\n'), 'text/csv');
   }
 
   // ── Dashboard shell + per-tab wiring ──
-  const TAB_RENDER = { overview:tabOverview, models:tabModels, overtime:tabOverTime, comparison:tabComparison, log:tabLog, summary:tabSummary };
+  const TAB_RENDER = { overview:tabOverview, models:tabModels, overtime:tabOverTime, comparison:tabComparison, log:tabLog };
   function renderAnTab(){
     const body = document.getElementById('anTabBody'); if(!body) return;
     body.innerHTML = (TAB_RENDER[anTab] || tabOverview)();
     wireAnTab();
   }
   function wireAnTab(){
+    // Date-range selector (Overview): changing it re-fetches the window from the server.
+    document.querySelectorAll('#anRange button').forEach(b => b.addEventListener('click', ()=>{ anRange = b.dataset.range; loadAnalytics(); }));
     if(anTab === 'overtime'){
-      document.querySelectorAll('.range-tabs button').forEach(b => b.addEventListener('click', ()=>{ otRange = Number(b.dataset.range); renderAnTab(); }));
       document.querySelectorAll('.legend .lg').forEach(b => b.addEventListener('click', ()=>{ const mo = decodeURIComponent(b.dataset.mo); otHidden[mo] = !otHidden[mo]; renderAnTab(); }));
     } else if(anTab === 'log'){
       const ms = document.getElementById('lgModel'); if(ms) ms.addEventListener('change', ()=>{ logFilter.model = ms.value; renderAnTab(); });
@@ -1089,7 +1168,7 @@
     anData = a;
     let warn = '';
     if(a.needsMigration){
-      warn = '<div class="an-warn"><b>Usage table needs the new columns.</b> Run the latest <code>usage_events</code> migration (adds session_id, mode, latency_ms, finish_reason) in Supabase, then refresh. New AI calls record automatically once it exists.</div>';
+      warn = '<div class="an-warn"><b>Usage table needs the new columns.</b> Run the latest <code>usage_events</code> migration (adds session_id, mode, latency_ms, finish_reason, provider) in Supabase, then refresh. New AI calls record automatically once it exists.</div>';
     }
     const nav = '<div class="an-tabs">' + AN_TABS.map(([k,l,ic]) => '<button class="an-tab'+(anTab===k?' active':'')+'" data-an="'+k+'"><i class="fas '+ic+'"></i>'+l+'</button>').join('') + '</div>';
     anBody.innerHTML = warn + nav + '<div id="anTabBody"></div>';
@@ -1102,7 +1181,7 @@
     try{
       let tz = '';
       try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(_){ }
-      const a = await CMS.get('/api/admin?resource=analytics' + (tz ? '&tz=' + encodeURIComponent(tz) : ''));
+      const a = await CMS.get('/api/admin?resource=analytics&range=' + encodeURIComponent(anRange) + (tz ? '&tz=' + encodeURIComponent(tz) : ''));
       renderAnalytics(a);
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();

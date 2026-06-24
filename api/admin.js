@@ -121,70 +121,63 @@ export default async function handler(req, res) {
     }
 
     // ── ANALYTICS ──
-    // Reads raw usage_events for the last 30 days and aggregates in-process
+    // Reads raw usage_events over a selectable window and aggregates in-process
     // (low row volume: one row per AI call). Returns OpenRouter-style breakdowns:
-    // spend per window, per-model totals, per-phase totals, and a daily series.
+    // window totals, per-model / per-phase / per-mode, a daily series, a Mode-1-vs-2
+    // breakdown, and recent message rows for the log + export.
     if (resource === 'analytics') {
       if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
       const DAY_MS = 24 * 60 * 60 * 1000;
       const now = new Date();
-      // Bucket today/yesterday/daily by the admin's LOCAL calendar day. The browser
-      // sends its IANA zone (?tz=America/New_York); fall back to UTC if absent/invalid.
+      // Bucket daily by the admin's LOCAL calendar day. The browser sends its IANA
+      // zone (?tz=America/New_York); fall back to UTC if absent/invalid.
       const tz = (req.query.tz || '').toString() || 'UTC';
       let dayKey;
       try {
         const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
-        // en-CA yields YYYY-MM-DD; verify it actually works for this zone.
-        fmt.format(now);
+        fmt.format(now); // verify the zone works
         dayKey = (d) => fmt.format(d instanceof Date ? d : new Date(d)); // -> 'YYYY-MM-DD'
       } catch {
         dayKey = (d) => new Date(d).toISOString().slice(0, 10);
       }
-      // Fetch a touch wider than 30 days so no local-day row near the edge is clipped.
-      const since = new Date(now.getTime() - 32 * DAY_MS).toISOString();
 
-      // How many recent rows to ship for the Message Log / export (capped).
+      // Selectable range (days). 'all' → everything. Daily chart caps at 365 buckets.
+      const rangeRaw = (req.query.range || '30').toString();
+      const isAll = rangeRaw === 'all';
+      const rangeDays = isAll ? 4000 : Math.min(Math.max(parseInt(rangeRaw, 10) || 30, 1), 4000);
+      // Fetch a touch wider so no local-day row near the edge is clipped.
+      const since = new Date(now.getTime() - (rangeDays + 2) * DAY_MS).toISOString();
+      const chartDays = Math.min(rangeDays, 365);
       const msgLimit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500, 1), 5000);
 
       const { data: rows, error } = await svc
         .from('usage_events')
-        .select('id, created_at, model, phase, mode, session_id, prompt_tokens, completion_tokens, total_tokens, cost, latency_ms, finish_reason')
+        .select('id, created_at, model, provider, phase, mode, session_id, prompt_tokens, completion_tokens, total_tokens, cost, latency_ms, finish_reason')
         .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(100000);
+        .limit(200000);
       if (error) {
-        // Surface a clear hint when the table hasn't been migrated yet.
+        // Surface a clear hint when the table / new columns haven't been migrated yet.
         const missing = /relation .*usage_events.* does not exist|could not find the table|column .* does not exist/i.test(error.message || '');
         return res.status(missing ? 200 : 500).json(
           missing
-            ? { needsMigration: true, totals: {}, performance: {}, byModel: [], byPhase: [], byMode: [], daily: [], dailyByModel: [], messages: [] }
+            ? { needsMigration: true, windowTotal: {}, performance: {}, byModel: [], byPhase: [], byMode: [], modeBreakdown: {}, daily: [], dailyByModel: [], messages: [] }
             : { error: error.message }
         );
       }
 
-      // Local-day keys for today/yesterday; rolling windows for 7/30-day totals.
-      const todayKey = dayKey(now);
-      const [ty, tm, td] = todayKey.split('-').map(Number);
-      const todayUTC = Date.UTC(ty, tm - 1, td); // midnight UTC of the local "today" date
-      const yesterdayKey = new Date(todayUTC - DAY_MS).toISOString().slice(0, 10);
-      const start7 = now.getTime() - 7 * DAY_MS;
-      const start30 = now.getTime() - 30 * DAY_MS;
-
-      const blank = () => ({ cost: 0, tokens: 0, calls: 0 });
-      const totals = { today: blank(), yesterday: blank(), last7: blank(), last30: blank() };
+      const windowTotal = { calls: 0, cost: 0, tokens: 0, input: 0, output: 0 };
       const modelMap = {};
       const phaseMap = {};
       const modeMap = {};
+      const modeAgg = {};         // mode -> { calls, cost, tokens, input, output, models{} }
       const dailyMap = {};
       const dailyModelMap = {};   // day -> { model -> { cost, tokens } }
 
-      // Performance: average latency + fastest/slowest single call (with model).
-      let latSum = 0, latCount = 0;
-      let fastest = null, slowest = null;
+      let latSum = 0, latCount = 0, fastest = null, slowest = null;
 
       for (const r of rows || []) {
-        const t = new Date(r.created_at).getTime();
         const cost = Number(r.cost) || 0;
         const prompt = Number(r.prompt_tokens) || 0;
         const completion = Number(r.completion_tokens) || 0;
@@ -192,11 +185,8 @@ export default async function handler(req, res) {
         const dk = dayKey(r.created_at);
         const mk = r.model || 'unknown';
 
-        const add = (b) => { b.cost += cost; b.tokens += tokens; b.calls += 1; };
-        if (t >= start30) add(totals.last30);
-        if (t >= start7) add(totals.last7);
-        if (dk === todayKey) add(totals.today);
-        else if (dk === yesterdayKey) add(totals.yesterday);
+        windowTotal.calls += 1; windowTotal.cost += cost; windowTotal.tokens += tokens;
+        windowTotal.input += prompt; windowTotal.output += completion;
 
         (modelMap[mk] ||= { model: mk, cost: 0, tokens: 0, prompt_tokens: 0, completion_tokens: 0, calls: 0, latSum: 0, latCount: 0, lastUsed: r.created_at });
         const m = modelMap[mk];
@@ -210,6 +200,13 @@ export default async function handler(req, res) {
         const mdk = r.mode == null ? 'unknown' : String(r.mode);
         (modeMap[mdk] ||= { mode: mdk, cost: 0, tokens: 0, calls: 0 });
         modeMap[mdk].cost += cost; modeMap[mdk].tokens += tokens; modeMap[mdk].calls += 1;
+
+        // Per-mode breakdown incl. which models ran under each mode.
+        (modeAgg[mdk] ||= { mode: mdk, calls: 0, cost: 0, tokens: 0, input: 0, output: 0, models: {} });
+        const ma = modeAgg[mdk];
+        ma.calls += 1; ma.cost += cost; ma.tokens += tokens; ma.input += prompt; ma.output += completion;
+        (ma.models[mk] ||= { model: mk, calls: 0, cost: 0, tokens: 0 });
+        ma.models[mk].calls += 1; ma.models[mk].cost += cost; ma.models[mk].tokens += tokens;
 
         (dailyMap[dk] ||= { day: dk, cost: 0, tokens: 0, calls: 0 });
         dailyMap[dk].cost += cost; dailyMap[dk].tokens += tokens; dailyMap[dk].calls += 1;
@@ -227,11 +224,14 @@ export default async function handler(req, res) {
         }
       }
 
-      // Dense 30-day daily series (fill gaps with zeros), oldest → newest. Keys are
-      // calendar dates anchored on the local "today", decremented in UTC (no DST drift).
+      // Dense daily series (fill gaps with zeros), oldest → newest. Keys are calendar
+      // dates anchored on the local "today", decremented in UTC (no DST drift).
+      const todayKey = dayKey(now);
+      const [ty, tm, td] = todayKey.split('-').map(Number);
+      const todayUTC = Date.UTC(ty, tm - 1, td);
       const daily = [];
       const dailyByModel = [];
-      for (let i = 29; i >= 0; i--) {
+      for (let i = chartDays - 1; i >= 0; i--) {
         const k = new Date(todayUTC - i * DAY_MS).toISOString().slice(0, 10);
         daily.push(dailyMap[k] || { day: k, cost: 0, tokens: 0, calls: 0 });
         dailyByModel.push({ day: k, perModel: dailyModelMap[k] || {} });
@@ -246,18 +246,26 @@ export default async function handler(req, res) {
         }))
         .sort((a, b) => b.cost - a.cost);
 
+      // Finalize the mode breakdown (models map -> sorted array).
+      const modeBreakdown = {};
+      for (const k of Object.keys(modeAgg)) {
+        const x = modeAgg[k];
+        modeBreakdown[k] = {
+          mode: k, calls: x.calls, cost: x.cost, tokens: x.tokens, input: x.input, output: x.output,
+          models: Object.values(x.models).sort((a, b) => b.cost - a.cost),
+        };
+      }
+
       return res.status(200).json({
-        totals,
-        performance: {
-          avgLatencyMs: latCount ? Math.round(latSum / latCount) : null,
-          fastest, slowest,
-        },
+        range: isAll ? 'all' : rangeDays,
+        windowTotal,
+        performance: { avgLatencyMs: latCount ? Math.round(latSum / latCount) : null, fastest, slowest },
         byModel,
         byPhase: Object.values(phaseMap).sort((a, b) => b.cost - a.cost),
         byMode: Object.values(modeMap).sort((a, b) => b.cost - a.cost),
+        modeBreakdown,
         daily,
         dailyByModel,
-        // Most-recent rows for the Message Log + CSV/JSON export.
         messages: (rows || []).slice(0, msgLimit),
       });
     }
