@@ -759,13 +759,18 @@ ${REFERENCE_TEMPLATE}`;
       await fetch(SAWO_API_BASE + '/api/conversations?action=log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // NOTE: the generated image (a multi-MB base64 data URL) is intentionally
+        // NOT sent here. Inlining it blew past Vercel's ~4.5 MB request body cap,
+        // so this POST silently failed and the drawing never reached the logs.
+        // The image is now persisted server-side by /api/openrouter?type=image,
+        // which already has the bytes. We still report image_generated so the row
+        // reflects that a drawing exists even if the server write raced.
         body: JSON.stringify({
           session_id: sessionId,
           lead: lead,
           messages: history,
           txt_block: loggedTxtBlock,
           image_generated: loggedImageGenerated,
-          image_url: loggedImageUrl,
           user_agent: navigator.userAgent
         })
       });
@@ -1037,7 +1042,9 @@ ${REFERENCE_TEMPLATE}`;
       const trigger = 'Generate the complete technical CAD drawing canvas image now.';
       if(!txtBlock.includes(trigger)){ txtBlock += '\n\n' + trigger; }
       loggedTxtBlock = txtBlock;
-      logSession();
+      // Await so the conversation row exists before the image endpoint writes the
+      // drawing onto it server-side (avoids a row-not-found race on first save).
+      await logSession();
 
       setActiveModel('image');
       renderScan('Rendering technical drawing…');

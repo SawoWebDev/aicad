@@ -53,14 +53,21 @@ export default async function handler(req, res) {
         updated_at: new Date().toISOString(),
         messages: b.messages ?? [],
         txt_block: b.txt_block ?? null,
-        image_generated: !!b.image_generated,
-        image_url: b.image_url ?? null,
         user_agent: b.user_agent ?? null,
         client_name: blank(lead.name),
         client_email: blank(lead.email),
         client_phone: blank(lead.phone),
         client_location: blank(lead.location),
       };
+      // The generated image (a multi-MB base64 data URL) is persisted SERVER-SIDE
+      // by /api/openrouter?type=image — it never travels through this public log
+      // POST, whose request body is capped (~4.5 MB on Vercel) and would silently
+      // 413 with a large drawing inline, dropping the image from the logs. So we
+      // only touch image columns here when a caller explicitly supplies them
+      // (legacy small-image clients); omitting them leaves the server-written
+      // values untouched on conflict instead of clobbering them to null/false.
+      if (b.image_url) row.image_url = b.image_url;
+      if (b.image_generated) row.image_generated = true;
       const svc = serviceClient();
       const { error } = await svc.from(TABLE).upsert(row, { onConflict: 'session_id' });
       if (error) return res.status(500).json({ error: error.message });

@@ -157,10 +157,12 @@
 
   /* ── Analytics ── */
   .an-wrap{ max-width:980px; margin:0 auto; }
-  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-  @media (max-width:760px){ .stat-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:14px; }
+  .stat-grid.stat-grid-2{ grid-template-columns:repeat(2,1fr); margin-bottom:20px; }
+  @media (max-width:760px){ .stat-grid, .stat-grid.stat-grid-2{ grid-template-columns:repeat(2,1fr); } }
   .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px; box-shadow:0 10px 30px rgba(139,94,60,0.06); }
   .stat-card .sc-label{ font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
+  .stat-card .sc-label i{ margin-right:5px; opacity:0.7; }
   .stat-card .sc-cost{ font-size:1.5rem; font-weight:700; color:var(--brown-deep); margin:8px 0 2px; letter-spacing:0.3px; }
   .stat-card .sc-sub{ font-size:0.7rem; color:var(--text-dim); }
   .an-panel{ max-width:980px; }
@@ -845,15 +847,34 @@
       tokens: bm.reduce((s,m)=>s+(m.tokens||0),0),
     };
   }
-  function card(label, big, sub, accent){
+  function card(label, big, sub, accent, icon){
     return '<div class="stat-card"' + (accent ? ' style="border-top:3px solid ' + accent + '"' : '') + '>' +
-      '<div class="sc-label">' + label + '</div><div class="sc-cost">' + big + '</div><div class="sc-sub">' + sub + '</div></div>';
+      '<div class="sc-label">' + (icon ? '<i class="fas ' + icon + '"></i> ' : '') + label + '</div>' +
+      '<div class="sc-cost">' + big + '</div><div class="sc-sub">' + sub + '</div></div>';
   }
   function renderChart(daily){
     const max = Math.max(...daily.map(d => d.cost), 0.0000001);
     const bars = daily.map(d => '<div class="bar-col"><span class="tip">' + d.day.slice(5) + ' · ' + costFull(d.cost) + ' · ' + compact(d.tokens) + ' tok</span><div class="bar" style="height:' + Math.round((d.cost/max)*100) + '%"></div></div>').join('');
     const axis = daily.map((d, i) => '<span>' + ((i % 5 === 0 || i === daily.length - 1) ? d.day.slice(5) : '') + '</span>').join('');
     return '<div class="chart">' + bars + '</div><div class="chart-axis">' + axis + '</div>';
+  }
+  // Daily spend, stacked + colour-coded by the model that drove each day's cost.
+  function renderSpendChart(dbm, models){
+    const dayCost = day => models.reduce((s, mo) => s + ((day.perModel[mo] || {}).cost || 0), 0);
+    const max = Math.max(...dbm.map(dayCost), 0.0000001);
+    const cols = dbm.map(day => {
+      const tot = dayCost(day);
+      const segs = models.map(mo => {
+        const c = (day.perModel[mo] || {}).cost || 0;
+        return c ? '<div class="seg" style="height:' + ((c / max) * 100) + '%;background:' + colorFor(mo) + '"></div>' : '';
+      }).join('');
+      const brk = models.filter(mo => (day.perModel[mo] || {}).cost)
+        .map(mo => esc(shortModel(mo)) + ': ' + costFull(day.perModel[mo].cost)).join(' · ');
+      return '<div class="scol"><span class="tip">' + day.day.slice(5) + ' · ' + costFull(tot) + (brk ? ' · ' + brk : '') + '</span>' + segs + '</div>';
+    }).join('');
+    const axis = dbm.map((d, i) => '<span>' + ((i % 5 === 0 || i === dbm.length - 1) ? d.day.slice(5) : '') + '</span>').join('');
+    const lg = '<div class="legend">' + models.map(mo => '<span class="lg" style="cursor:default"><span class="sw" style="background:' + colorFor(mo) + '"></span>' + esc(shortModel(mo)) + '</span>').join('') + '</div>';
+    return '<div class="schart">' + cols + '</div><div class="chart-axis">' + axis + '</div>' + lg;
   }
 
   // ── Tab 1: Overview (range selector + headline cards + embedded AI summary) ──
@@ -867,16 +888,21 @@
     const dearest = bm.slice().sort((a,b)=>b.cost-a.cost)[0];
     const byMode = anData.byMode || [], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
     const m2pct = totMode ? Math.round((m2?m2.calls:0)/totMode*100) : 0;
+    // Row 1: the four headline metrics.
     h += '<div class="stat-grid">';
-    h += card('Messages', fmtInt(g.calls), rangeLabel() + (m2pct?(' · ' + m2pct + '% Pipeline 2'):''), '#AF8564');
-    h += card('Total tokens', compact(g.tokens), fmtInt(g.input) + ' in · ' + fmtInt(g.output) + ' out', '#3B82F6');
-    h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E');
-    h += card('Most used model', modelBadge(mostUsed.model), fmtInt(mostUsed.calls) + ' calls · ' + compact(mostUsed.tokens) + ' tok', colorFor(mostUsed.model));
-    h += card('Highest cost model', modelBadge(dearest.model), costFull(dearest.cost) + ' total', colorFor(dearest.model));
-    h += card('Models used', fmtInt(bm.length), perf.avgLatencyMs!=null ? ('avg ' + fmtMs(perf.avgLatencyMs) + ' latency') : 'latency: not recorded yet', '#A855F7');
+    h += card('Messages', fmtInt(g.calls), rangeLabel() + (m2pct?(' · ' + m2pct + '% Pipeline 2'):''), '#AF8564', 'fa-comments');
+    h += card('Total tokens', compact(g.tokens), fmtInt(g.input) + ' in · ' + fmtInt(g.output) + ' out', '#3B82F6', 'fa-coins');
+    h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E', 'fa-sack-dollar');
+    h += card('Models used', fmtInt(bm.length), perf.avgLatencyMs!=null ? ('avg ' + fmtMs(perf.avgLatencyMs) + ' latency') : 'latency: not recorded yet', '#A855F7', 'fa-robot');
     h += '</div>';
-    h += '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-chart-column"></i> Daily spend (' + rangeLabel() + ')</div>' +
-      ((anData.daily && anData.daily.some(d=>d.cost>0)) ? renderChart(anData.daily) : '<div class="an-empty">No spend in this window.</div>') + '</div>';
+    // Row 2: the two model spotlights, each spanning half the width.
+    h += '<div class="stat-grid stat-grid-2">';
+    h += card('Most used model', modelBadge(mostUsed.model), fmtInt(mostUsed.calls) + ' calls · ' + compact(mostUsed.tokens) + ' tok', colorFor(mostUsed.model), 'fa-fire');
+    h += card('Highest cost model', modelBadge(dearest.model), costFull(dearest.cost) + ' total', colorFor(dearest.model), 'fa-money-bill-trend-up');
+    h += '</div>';
+    const dbm = (anData.dailyByModel || []), spendModels = bm.map(m=>m.model);
+    h += '<div class="panel an-panel" style="margin:0 auto 20px;"><div class="section-label"><i class="fas fa-chart-column"></i> Daily spend by model (' + rangeLabel() + ')</div>' +
+      ((anData.daily && anData.daily.some(d=>d.cost>0)) ? renderSpendChart(dbm, spendModels) : '<div class="an-empty">No spend in this window.</div>') + '</div>';
     h += summaryPanel();
     return h;
   }
@@ -1058,7 +1084,7 @@
   }
 
   // ── Auto AI summary (computed locally) — embedded at the bottom of Overview ──
-  function insight(ico,col,label,val){ return '<div class="insight" style="border-left:4px solid '+col+'"><div class="i-ico">'+ico+'</div><div class="i-label">'+label+'</div><div class="i-val">'+val+'</div></div>'; }
+  function insight(ico,col,label,val){ return '<div class="insight" style="border-left:4px solid '+col+'"><div class="i-ico" style="color:'+col+'"><i class="fas '+ico+'"></i></div><div class="i-label">'+label+'</div><div class="i-val">'+val+'</div></div>'; }
   function peakDay(){ const d=(anData.daily||[]).slice().sort((a,b)=>b.cost-a.cost)[0]; return (d&&d.cost>0)?(d.day.slice(5)+' '+costFull(d.cost)):'—'; }
   function summaryPanel(){
     const bm = (anData.byModel || []), g = grand(), perf = anData.performance || {};
@@ -1080,14 +1106,14 @@
     para += 'Pipeline 2 accounted for <b>'+m2pct+'%</b> of tagged calls. Total spend: <b>'+money(g.cost)+'</b> across '+fmtInt(g.calls)+' calls.';
     let h = '<div class="panel an-panel" style="margin:0 auto;"><div class="section-label"><i class="fas fa-brain"></i> Auto insight</div><p class="sum-para">'+para+'</p>';
     h += '<div class="insight-grid">' +
-      insight('🏆','#A855F7','Most used', modelBadge(mostUsed.model)) +
-      insight('💰','#EF4444','Highest cost', modelBadge(dearest.model)+' '+costFull(dearest.cost)) +
-      insight('💸','#22C55E','Most efficient', modelBadge(cheapest.model)) +
-      insight('⚡','#F97316','Fastest avg', fastest?(esc(shortModel(fastest.model))+' '+fmtMs(fastest.avgLatencyMs)):'—') +
-      insight('🐢','#64748B','Slowest avg', slowest?(esc(shortModel(slowest.model))+' '+fmtMs(slowest.avgLatencyMs)):'—') +
-      insight('🔥','#EC4899','Peak day', peakDay()) +
-      insight('🧮','#3B82F6','Avg cost/msg', money4(g.calls?g.cost/g.calls:0)) +
-      insight('⚠️','#C99A2C','Non-stop finishes', fmtInt(anomalies)) +
+      insight('fa-trophy','#A855F7','Most used', modelBadge(mostUsed.model)) +
+      insight('fa-money-bill-wave','#EF4444','Highest cost', modelBadge(dearest.model)+' '+costFull(dearest.cost)) +
+      insight('fa-leaf','#22C55E','Most efficient', modelBadge(cheapest.model)) +
+      insight('fa-bolt','#F97316','Fastest avg', fastest?(esc(shortModel(fastest.model))+' '+fmtMs(fastest.avgLatencyMs)):'—') +
+      insight('fa-hourglass-half','#64748B','Slowest avg', slowest?(esc(shortModel(slowest.model))+' '+fmtMs(slowest.avgLatencyMs)):'—') +
+      insight('fa-fire','#EC4899','Peak day', peakDay()) +
+      insight('fa-calculator','#3B82F6','Avg cost/msg', money4(g.calls?g.cost/g.calls:0)) +
+      insight('fa-triangle-exclamation','#C99A2C','Non-stop finishes', fmtInt(anomalies)) +
     '</div></div>';
     return h;
   }

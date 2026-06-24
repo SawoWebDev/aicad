@@ -154,7 +154,7 @@
   #anvScrim.open{ opacity:1; visibility:visible; }
   #anvDrawer{
     position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.96);
-    width:min(1000px,94vw); height:min(88vh,940px);
+    width:min(1360px,96vw); height:min(90vh,980px);
     background:var(--bg); border-radius:16px; box-shadow:0 30px 90px rgba(20,22,23,0.42);
     opacity:0; visibility:hidden; transition:opacity .25s ease, transform .25s ease; z-index:99999;
     display:flex; flex-direction:column; min-height:0; overflow:hidden;
@@ -167,7 +167,10 @@
   .anv-head .anv-ico{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.16); font-size:0.95rem; flex-shrink:0; }
   .anv-head h3{ margin:0; font-size:0.95rem; font-weight:700; letter-spacing:0.3px; }
   .anv-head .anv-sub{ font-size:0.68rem; opacity:0.85; margin-top:1px; }
-  .anv-close{ margin-left:auto; background:rgba(255,255,255,0.14); border:none; color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.9rem; flex-shrink:0; transition:background .2s; }
+  .anv-headbtn{ margin-left:auto; background:rgba(255,255,255,0.16); border:none; color:#fff; height:32px; padding:0 13px; border-radius:8px; cursor:pointer; font-size:0.74rem; font-weight:700; letter-spacing:0.02em; flex-shrink:0; transition:background .2s; display:inline-flex; align-items:center; gap:7px; }
+  .anv-headbtn:hover{ background:rgba(255,255,255,0.3); }
+  .anv-headbtn.active{ background:#fff; color:var(--brown-deep); }
+  .anv-close{ margin-left:8px; background:rgba(255,255,255,0.14); border:none; color:#fff; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:0.9rem; flex-shrink:0; transition:background .2s; }
   .anv-close:hover{ background:rgba(255,255,255,0.28); }
   .anv-body{ flex:1; overflow-y:auto; min-height:0; padding:22px 26px 34px; }
   .anv-body::-webkit-scrollbar{ width:8px; }
@@ -214,21 +217,39 @@
   /* Drill-down calls */
   .anv-toolbar{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
   .anv-toolbar select{ border:1.5px solid var(--line); border-radius:7px; background:#fff; font-family:'Montserrat',sans-serif; font-size:0.74rem; padding:6px 9px; color:var(--black); }
-  .anv-call{ background:var(--panel); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; overflow:hidden; }
-  .anv-call-row{ display:flex; align-items:center; gap:10px; padding:9px 12px; cursor:pointer; }
-  .anv-call-row:hover{ background:var(--bg); }
-  .anv-call-time{ font-size:0.7rem; color:var(--text-dim); font-weight:600; width:118px; flex-shrink:0; }
-  .anv-call-phase{ font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 7px; border-radius:9px; background:rgba(166,120,83,0.13); color:var(--brown-deep); flex-shrink:0; }
-  .anv-call-prov{ display:inline-flex; align-items:center; gap:5px; font-size:0.66rem; font-weight:600; color:var(--text-dim); flex-shrink:0; }
-  .anv-call-prov .dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
-  .anv-call-tok{ margin-left:auto; font-size:0.72rem; color:var(--black); font-weight:600; flex-shrink:0; }
-  .anv-call-cost{ font-size:0.72rem; color:var(--brown-deep); font-weight:700; width:78px; text-align:right; flex-shrink:0; }
-  .anv-call-caret{ color:var(--text-dim); font-size:0.7rem; flex-shrink:0; transition:transform .2s; }
-  .anv-call.open .anv-call-caret{ transform:rotate(90deg); }
-  .anv-call-detail{ display:none; padding:0 12px 11px; flex-wrap:wrap; gap:6px 16px; }
-  .anv-call.open .anv-call-detail{ display:flex; }
-  .anv-call-detail .kv{ font-size:0.68rem; color:var(--text-dim); }
-  .anv-call-detail .kv b{ color:var(--black); font-weight:600; }
+  /* Per-call detail — full table, every column always visible (no click-to-expand) */
+  .anv-calltable{ width:100%; border-collapse:collapse; font-size:0.72rem; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .anv-calltable th,.anv-calltable td{ padding:7px 9px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  .anv-calltable th{ font-size:0.58rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); background:var(--bg); position:sticky; top:0; }
+  .anv-calltable th.num,.anv-calltable td.num{ text-align:right; }
+  .anv-calltable tbody tr:last-child td{ border-bottom:none; }
+  .anv-calltable tbody tr:hover td{ background:var(--bg); }
+  .anv-calltable td.cost{ color:var(--brown-deep); font-weight:700; }
+  .anv-calltable .anv-call-phase{ display:inline-block; }
+  .anv-call-phase{ font-size:0.56rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; padding:2px 7px; border-radius:9px; background:rgba(166,120,83,0.13); color:var(--brown-deep); white-space:nowrap; }
+  .anv-prov-cell{ display:inline-flex; align-items:center; gap:6px; }
+  .anv-prov-cell .dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  /* Compare conversations */
+  .anv-cmp-pick{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .anv-cmp-pick-list{ max-height:260px; overflow-y:auto; margin:10px 0 14px; display:flex; flex-direction:column; gap:2px; }
+  .anv-cmp-opt{ display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; cursor:pointer; font-size:0.78rem; }
+  .anv-cmp-opt:hover{ background:var(--bg); }
+  .anv-cmp-opt input{ flex-shrink:0; }
+  .anv-cmp-opt .nm{ font-weight:600; color:var(--black); flex-shrink:0; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .anv-cmp-opt .sn{ color:var(--text-dim); font-size:0.7rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .anv-cmp-opt.self{ background:rgba(166,120,83,0.08); }
+  .anv-btn{ background:var(--brown-deep); border:none; color:#fff; font-family:'Montserrat',sans-serif; font-weight:700; font-size:0.76rem; padding:9px 16px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+  .anv-btn:hover{ background:var(--brown-mid); }
+  .anv-btn:disabled{ opacity:0.5; cursor:default; }
+  .anv-btn.ghost{ background:transparent; color:var(--brown-deep); border:1.5px solid var(--line); }
+  .anv-cmp-table th.metric,.anv-cmp-table td.metric{ position:sticky; left:0; background:var(--bg); font-weight:700; z-index:1; }
+  .anv-cmp-table td.hi{ background:rgba(166,120,83,0.16); font-weight:700; }
+  .anv-cmp-table thead th{ vertical-align:bottom; }
+  .anv-cmp-table thead th.self .anv-cmp-colname{ color:var(--brown-deep); }
+  .anv-cmp-colname{ font-weight:700; color:var(--black); max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .anv-cmp-collead{ font-size:0.62rem; color:var(--text-dim); font-weight:600; }
+  .anv-cmp-legend{ font-size:0.66rem; color:var(--text-dim); margin-top:9px; display:flex; align-items:center; gap:7px; }
+  .anv-cmp-legend .sw{ width:12px; height:12px; border-radius:3px; background:rgba(166,120,83,0.16); display:inline-block; }
   /* Insight cards */
   .anv-insights{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:11px; }
   .anv-insight{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--brown-mid); border-radius:10px; padding:11px 13px; }
@@ -287,6 +308,7 @@
         <h3>Conversation Analytics</h3>
         <div class="anv-sub" id="anvSub">Usage, cost &amp; model breakdown</div>
       </div>
+      <button class="anv-headbtn" id="anvCompareBtn" title="Compare with other conversations"><i class="fas fa-scale-balanced"></i> Compare</button>
       <button class="anv-close" id="anvClose" title="Close"><i class="fas fa-xmark"></i></button>
     </div>
     <div class="anv-body" id="anvBody"></div>
@@ -645,19 +667,25 @@
   const anvBody = document.getElementById('anvBody');
   const anvSub = document.getElementById('anvSub');
   const anvClose = document.getElementById('anvClose');
+  const anvCompareBtn = document.getElementById('anvCompareBtn');
   let anvData = null;
   let anvSort = { key:'tokens', dir:'desc' };   // model-table sort
   let anvFilter = '';                            // drill-down model filter
+  let anvSessionId = null, anvSessionName = '';  // the conversation the drawer opened on
+  let anvCmpData = [];                           // [{ id, name, data }] for the compare view
   const ANV_CALL_CAP = 200;                      // cap drill-down rows (very long convos)
 
   function openAnalyticsDrawer(){ anvScrim.classList.add('open'); anvDrawer.classList.add('open'); anvDrawer.setAttribute('aria-hidden','false'); }
-  function closeAnalytics(){ anvScrim.classList.remove('open'); anvDrawer.classList.remove('open'); anvDrawer.setAttribute('aria-hidden','true'); }
+  function closeAnalytics(){ anvScrim.classList.remove('open'); anvDrawer.classList.remove('open'); anvDrawer.setAttribute('aria-hidden','true'); anvCompareBtn.classList.remove('active'); }
   anvClose.addEventListener('click', closeAnalytics);
   anvScrim.addEventListener('click', closeAnalytics);
+  anvCompareBtn.addEventListener('click', renderComparePicker);
   document.addEventListener('keydown', (e) => { if(e.key === 'Escape' && anvDrawer.classList.contains('open')) closeAnalytics(); });
 
   async function openAnalytics(sessionId, name){
     anvSort = { key:'tokens', dir:'desc' }; anvFilter = ''; anvData = null;
+    anvSessionId = sessionId; anvSessionName = name || '';
+    anvCompareBtn.classList.remove('active');
     anvSub.textContent = name ? ('Usage for ' + name) : 'Usage, cost & model breakdown';
     anvBody.innerHTML = '<div class="anv-loading"><i class="fas fa-circle-notch fa-spin"></i> Loading usage…</div>';
     openAnalyticsDrawer();
@@ -792,6 +820,9 @@
     return h;
   }
 
+  // Per-call detail: a full table with every column visible at once — no
+  // click-to-expand. The wider modal accommodates all columns; long convos
+  // scroll the table body (capped at ANV_CALL_CAP rows).
   function drillDown(){
     const all = anvData.events || [];
     const models = Array.from(new Set(all.map(r=>r.model)));
@@ -802,30 +833,33 @@
     h += '<div class="anv-toolbar"><select id="anvCallFilter"><option value="">All models</option>' +
       models.map(m=>'<option value="' + esc(m) + '"' + (anvFilter===m?' selected':'') + '>' + esc(shortModel(m)) + '</option>').join('') + '</select>' +
       '<span style="font-size:0.68rem;color:var(--text-dim);margin-left:auto;">' + shown.length + (capped ? (' of ' + rows.length) : '') + ' call' + (rows.length===1?'':'s') + '</span></div>';
-    h += shown.map((r,i)=>{
+    const cols = ['Time','Phase','Model','Provider','Input','Output','Total','Latency','Speed','Pipeline','Finish','Cost'];
+    const numCol = { Input:1, Output:1, Total:1, Latency:1, Speed:1, Cost:1 };
+    h += '<div style="overflow-x:auto;"><table class="anv-calltable"><thead><tr>' +
+      cols.map(c=>'<th' + (numCol[c]?' class="num"':'') + '>' + c + '</th>').join('') +
+      '</tr></thead><tbody>';
+    h += shown.map(r=>{
       const total = Number(r.total_tokens) || ((Number(r.prompt_tokens)||0) + (Number(r.completion_tokens)||0));
       const sp = speedFor(r);
-      return '<div class="anv-call" data-i="' + i + '">' +
-        '<div class="anv-call-row">' +
-          '<i class="fas fa-chevron-right anv-call-caret"></i>' +
-          '<span class="anv-call-time">' + esc(fmt(r.created_at)) + '</span>' +
-          '<span class="anv-call-phase">' + esc(PHASE_LABEL[r.phase] || r.phase || '—') + '</span> ' +
-          modelBadge(r.model) +
-          (r.provider ? '<span class="anv-call-prov"><span class="dot" style="background:' + colorFor('prov:' + r.provider) + '"></span>' + esc(r.provider) + '</span>' : '') +
-          '<span class="anv-call-tok">' + compact(total) + ' tok</span>' +
-          '<span class="anv-call-cost">' + costFull(r.cost) + '</span>' +
-        '</div>' +
-        '<div class="anv-call-detail">' +
-          '<span class="kv"><b>Provider</b> ' + esc(r.provider||'—') + '</span>' +
-          '<span class="kv"><b>Input</b> ' + fmtInt(r.prompt_tokens) + ' tok</span>' +
-          '<span class="kv"><b>Output</b> ' + fmtInt(r.completion_tokens) + ' tok</span>' +
-          '<span class="kv"><b>Latency</b> ' + fmtMs(r.latency_ms) + '</span>' +
-          '<span class="kv"><b>Speed</b> ' + (sp!=null ? sp.toFixed(1) + ' tok/s' : '—') + '</span>' +
-          '<span class="kv"><b>Pipeline</b> ' + (r.mode!=null ? ('Pipeline ' + r.mode) : '—') + '</span>' +
-          '<span class="kv"><b>Finish</b> ' + esc(r.finish_reason||'—') + '</span>' +
-        '</div></div>';
+      const provCell = r.provider
+        ? '<span class="anv-prov-cell"><span class="dot" style="background:' + colorFor('prov:' + r.provider) + '"></span>' + esc(r.provider) + '</span>'
+        : '<span style="color:var(--text-dim)">—</span>';
+      return '<tr>' +
+        '<td>' + esc(fmt(r.created_at)) + '</td>' +
+        '<td><span class="anv-call-phase">' + esc(PHASE_LABEL[r.phase] || r.phase || '—') + '</span></td>' +
+        '<td>' + modelBadge(r.model) + '</td>' +
+        '<td>' + provCell + '</td>' +
+        '<td class="num">' + fmtInt(r.prompt_tokens) + '</td>' +
+        '<td class="num">' + fmtInt(r.completion_tokens) + '</td>' +
+        '<td class="num">' + compact(total) + '</td>' +
+        '<td class="num">' + fmtMs(r.latency_ms) + '</td>' +
+        '<td class="num">' + (sp!=null ? sp.toFixed(1) + ' tok/s' : '—') + '</td>' +
+        '<td>' + (r.mode!=null ? ('Pipeline ' + r.mode) : '—') + '</td>' +
+        '<td>' + esc(r.finish_reason||'—') + '</td>' +
+        '<td class="num cost">' + costFull(r.cost) + '</td>' +
+        '</tr>';
     }).join('');
-    h += '</div>';
+    h += '</tbody></table></div></div>';
     return h;
   }
 
@@ -863,9 +897,115 @@
     });
     const f = document.getElementById('anvCallFilter');
     if(f) f.addEventListener('change', ()=>{ anvFilter = f.value; renderAnalytics(); });
-    document.querySelectorAll('#anvBody .anv-call .anv-call-row').forEach(row=>{
-      row.addEventListener('click', ()=> row.parentElement.classList.toggle('open'));
+  }
+
+  // ════════════ Compare conversations ════════════
+  // Stacks several conversations' usage side-by-side. Reuses the single-session
+  // analytics endpoint (one fetch per conversation) so the API stays unchanged.
+  // The candidate list is the page's already-loaded `sessions`.
+  function renderComparePicker(){
+    anvCompareBtn.classList.add('active');
+    anvSub.textContent = 'Compare conversations';
+    const items = sessions || [];
+    if(!items.length){
+      anvBody.innerHTML = '<div class="anv-empty"><i class="fas fa-scale-balanced"></i><div>No conversations available to compare.</div></div>';
+      return;
+    }
+    const opts = items.map(s=>{
+      const id = s.session_id;
+      const isSelf = id === anvSessionId;
+      return '<label class="anv-cmp-opt' + (isSelf?' self':'') + '">' +
+        '<input type="checkbox" class="anv-cmp-cb" value="' + esc(id) + '"' + (isSelf?' checked':'') + ' />' +
+        '<span class="nm">' + esc(convName(s)) + '</span>' +
+        '<span class="sn">' + esc(firstUserMsg(s)) + '</span>' +
+      '</label>';
+    }).join('');
+    anvBody.innerHTML =
+      '<div class="anv-cmp-pick">' +
+        '<div class="anv-section-label" style="margin-bottom:4px;"><i class="fas fa-scale-balanced"></i> Pick conversations to compare</div>' +
+        '<div style="font-size:0.74rem;color:var(--text-dim);">Select 2 or more — usage is fetched for each and shown side-by-side.</div>' +
+        '<div class="anv-cmp-pick-list">' + opts + '</div>' +
+        '<div style="display:flex;gap:10px;align-items:center;">' +
+          '<button class="anv-btn" id="anvCmpGo"><i class="fas fa-scale-balanced"></i> Compare selected</button>' +
+          (anvSessionId ? '<button class="anv-btn ghost" id="anvCmpBack">Back to this conversation</button>' : '') +
+          '<span id="anvCmpCount" style="font-size:0.72rem;color:var(--text-dim);margin-left:auto;"></span>' +
+        '</div>' +
+      '</div>';
+    const cbs = ()=>Array.from(anvBody.querySelectorAll('.anv-cmp-cb'));
+    const upd = ()=>{
+      const n = cbs().filter(c=>c.checked).length;
+      document.getElementById('anvCmpCount').textContent = n + ' selected';
+      document.getElementById('anvCmpGo').disabled = n < 2;
+    };
+    cbs().forEach(c=>c.addEventListener('change', upd));
+    upd();
+    document.getElementById('anvCmpGo').addEventListener('click', ()=>{
+      runCompare(cbs().filter(c=>c.checked).map(c=>c.value));
     });
+    const back = document.getElementById('anvCmpBack');
+    if(back) back.addEventListener('click', ()=>{
+      anvCompareBtn.classList.remove('active');
+      anvSub.textContent = anvSessionName ? ('Usage for ' + anvSessionName) : 'Usage, cost & model breakdown';
+      if(anvData) renderAnalytics(); else openAnalytics(anvSessionId, anvSessionName);
+    });
+  }
+
+  async function runCompare(ids){
+    anvSub.textContent = 'Comparing ' + ids.length + ' conversations';
+    anvBody.innerHTML = '<div class="anv-loading"><i class="fas fa-circle-notch fa-spin"></i> Loading usage for ' + ids.length + ' conversations…</div>';
+    try{
+      anvCmpData = await Promise.all(ids.map(async id=>{
+        const data = await CMS.get('/api/conversations?action=analytics&id=' + encodeURIComponent(id));
+        const s = (sessions||[]).find(x=>x.session_id===id);
+        return { id, name: s ? convName(s) : id.slice(0,8), data };
+      }));
+      renderCompare();
+    }catch(e){
+      anvBody.innerHTML = '<div class="anv-warn">' + esc(e.message || 'Could not load comparison.') + '</div>';
+    }
+  }
+
+  function renderCompare(){
+    const cols = anvCmpData;
+    // Each metric: [label, fn(data) -> [sortNum|null, html]]. sortNum drives the
+    // per-row "highest value" highlight; null opts the row out of highlighting.
+    const metrics = [
+      ['Total tokens',    d => { const v=(d.total&&d.total.tokens)||0; return [v, compact(v)]; }],
+      ['Input tokens',    d => { const v=(d.total&&d.total.input)||0;  return [v, fmtInt(v)]; }],
+      ['Output tokens',   d => { const v=(d.total&&d.total.output)||0; return [v, fmtInt(v)]; }],
+      ['Total cost',      d => { const v=(d.total&&d.total.cost)||0;   return [v, money(v)]; }],
+      ['AI calls',        d => { const v=(d.total&&d.total.calls)||0;  return [v, fmtInt(v)]; }],
+      ['Avg tokens/call', d => { const t=d.total||{}; const v=t.calls?Math.round((t.tokens||0)/t.calls):0; return [v, compact(v)]; }],
+      ['Avg cost/call',   d => { const t=d.total||{}; const v=t.calls?(t.cost||0)/t.calls:0; return [v, money4(v)]; }],
+      ['Models used',     d => { const v=(d.byModel||[]).length; return [v, String(v)]; }],
+      ['Most-used model', d => { const bm=(d.byModel||[]).slice().sort((a,b)=>b.tokens-a.tokens)[0]; return [null, bm?modelBadge(bm.model):'—']; }],
+      ['Duration',        d => { const v=d.duration&&d.duration.ms; return [v||0, fmtDur(v)]; }],
+      ['Avg latency',     d => { const v=d.performance&&d.performance.avgLatencyMs; return [v==null?null:Number(v), v!=null?fmtMs(v):'—']; }],
+      ['Peak call',       d => { const v=d.peak&&d.peak.tokens; return [v||0, v!=null?compact(v)+' tok':'—']; }],
+    ];
+    let h = '<div class="anv-section" style="margin-top:6px;"><div class="anv-section-label"><i class="fas fa-scale-balanced"></i> Conversation comparison</div>';
+    h += '<div style="overflow-x:auto;"><table class="anv-table anv-cmp-table"><thead><tr>' +
+      '<th class="metric">Metric</th>' +
+      cols.map(c=>'<th' + (c.id===anvSessionId?' class="self"':'') + '><div class="anv-cmp-colname" title="' + esc(c.name) + '">' + esc(c.name) + (c.id===anvSessionId?' ★':'') + '</div>' +
+        '<div class="anv-cmp-collead">' + ((c.data.total&&c.data.total.calls)||0) + ' calls</div></th>').join('') +
+      '</tr></thead><tbody>';
+    h += metrics.map(m=>{
+      const cells = cols.map(c=>m[1](c.data));   // [sortNum, html]
+      const nums = cells.map(x=>x[0]);
+      const valid = nums.filter(n=>n!=null && !isNaN(n));
+      const max = valid.length ? Math.max.apply(null, valid) : null;
+      const spread = new Set(valid).size > 1;   // only highlight when values differ
+      return '<tr><td class="metric">' + m[0] + '</td>' +
+        cells.map((x,i)=>'<td class="num' + (spread && max!=null && nums[i]===max ? ' hi':'') + '">' + x[1] + '</td>').join('') +
+      '</tr>';
+    }).join('');
+    h += '</tbody></table></div>';
+    h += '<div class="anv-cmp-legend"><span class="sw"></span> highest value in the row · ★ = this conversation · ' +
+      '<a href="#" id="anvCmpEdit" style="color:var(--brown-deep);font-weight:600;">change selection</a></div>';
+    h += '</div>';
+    anvBody.innerHTML = h;
+    const edit = document.getElementById('anvCmpEdit');
+    if(edit) edit.addEventListener('click', e=>{ e.preventDefault(); renderComparePicker(); });
   }
 
   refreshBtn.addEventListener('click', loadSessions);

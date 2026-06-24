@@ -219,6 +219,24 @@ export default async function handler(req, res) {
       });
       const imageUrl = extractImageUrl(data);
       if (!imageUrl) return res.status(502).json({ error: 'Model responded but no image was found. Try rephrasing the brief.' });
+
+      // Persist the drawing onto the conversation row HERE, server-side. The image
+      // is a multi-MB base64 data URL; sending it back to the browser only to have
+      // the browser re-POST it to the log endpoint hits Vercel's ~4.5 MB request
+      // body cap and silently fails, so the image never reaches the logs. Writing
+      // it directly (Vercel → Supabase has no such cap) makes it reliable.
+      // Best-effort: a failed write must never break the user-facing image.
+      if (sessionId) {
+        try {
+          await serviceClient()
+            .from('cad_conversations')
+            .update({ image_generated: true, image_url: imageUrl, updated_at: new Date().toISOString() })
+            .eq('session_id', sessionId);
+        } catch (e) {
+          console.error('[image] persist to conversation failed:', e?.message || e);
+        }
+      }
+
       return res.status(200).json({ imageUrl });
     }
 
