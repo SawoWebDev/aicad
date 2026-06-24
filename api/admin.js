@@ -120,6 +120,108 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
+    // ── ANALYTICS ──
+    // Reads raw usage_events for the last 30 days and aggregates in-process
+    // (low row volume: one row per AI call). Returns OpenRouter-style breakdowns:
+    // spend per window, per-model totals, per-phase totals, and a daily series.
+    if (resource === 'analytics') {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const now = new Date();
+      // Bucket today/yesterday/daily by the admin's LOCAL calendar day. The browser
+      // sends its IANA zone (?tz=America/New_York); fall back to UTC if absent/invalid.
+      const tz = (req.query.tz || '').toString() || 'UTC';
+      let dayKey;
+      try {
+        const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+        // en-CA yields YYYY-MM-DD; verify it actually works for this zone.
+        fmt.format(now);
+        dayKey = (d) => fmt.format(d instanceof Date ? d : new Date(d)); // -> 'YYYY-MM-DD'
+      } catch {
+        dayKey = (d) => new Date(d).toISOString().slice(0, 10);
+      }
+      // Fetch a touch wider than 30 days so no local-day row near the edge is clipped.
+      const since = new Date(now.getTime() - 32 * DAY_MS).toISOString();
+
+      const { data: rows, error } = await svc
+        .from('usage_events')
+        .select('created_at, model, phase, prompt_tokens, completion_tokens, total_tokens, cost')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(100000);
+      if (error) {
+        // Surface a clear hint when the table hasn't been migrated yet.
+        const missing = /relation .*usage_events.* does not exist|could not find the table/i.test(error.message || '');
+        return res.status(missing ? 200 : 500).json(
+          missing
+            ? { needsMigration: true, totals: {}, byModel: [], byPhase: [], daily: [] }
+            : { error: error.message }
+        );
+      }
+
+      // Local-day keys for today/yesterday; rolling windows for 7/30-day totals.
+      const todayKey = dayKey(now);
+      const [ty, tm, td] = todayKey.split('-').map(Number);
+      const todayUTC = Date.UTC(ty, tm - 1, td); // midnight UTC of the local "today" date
+      const yesterdayKey = new Date(todayUTC - DAY_MS).toISOString().slice(0, 10);
+      const start7 = now.getTime() - 7 * DAY_MS;
+      const start30 = now.getTime() - 30 * DAY_MS;
+
+      const blank = () => ({ cost: 0, tokens: 0, calls: 0 });
+      const totals = { today: blank(), yesterday: blank(), last7: blank(), last30: blank() };
+      const modelMap = {};
+      const phaseMap = {};
+      const dailyMap = {};
+
+      for (const r of rows || []) {
+        const t = new Date(r.created_at).getTime();
+        const cost = Number(r.cost) || 0;
+        const tokens = Number(r.total_tokens) || ((Number(r.prompt_tokens) || 0) + (Number(r.completion_tokens) || 0));
+        const dk = dayKey(r.created_at);
+
+        const add = (b) => { b.cost += cost; b.tokens += tokens; b.calls += 1; };
+        if (t >= start30) add(totals.last30);
+        if (t >= start7) add(totals.last7);
+        if (dk === todayKey) add(totals.today);
+        else if (dk === yesterdayKey) add(totals.yesterday);
+
+        const mk = r.model || 'unknown';
+        (modelMap[mk] ||= { model: mk, cost: 0, tokens: 0, prompt_tokens: 0, completion_tokens: 0, calls: 0 });
+        modelMap[mk].cost += cost;
+        modelMap[mk].tokens += tokens;
+        modelMap[mk].prompt_tokens += Number(r.prompt_tokens) || 0;
+        modelMap[mk].completion_tokens += Number(r.completion_tokens) || 0;
+        modelMap[mk].calls += 1;
+
+        const pk = r.phase || 'other';
+        (phaseMap[pk] ||= { phase: pk, cost: 0, tokens: 0, calls: 0 });
+        phaseMap[pk].cost += cost;
+        phaseMap[pk].tokens += tokens;
+        phaseMap[pk].calls += 1;
+
+        (dailyMap[dk] ||= { day: dk, cost: 0, tokens: 0, calls: 0 });
+        dailyMap[dk].cost += cost;
+        dailyMap[dk].tokens += tokens;
+        dailyMap[dk].calls += 1;
+      }
+
+      // Dense 30-day daily series (fill gaps with zeros), oldest → newest. Keys are
+      // calendar dates anchored on the local "today", decremented in UTC (no DST drift).
+      const daily = [];
+      for (let i = 29; i >= 0; i--) {
+        const k = new Date(todayUTC - i * DAY_MS).toISOString().slice(0, 10);
+        daily.push(dailyMap[k] || { day: k, cost: 0, tokens: 0, calls: 0 });
+      }
+
+      return res.status(200).json({
+        totals,
+        byModel: Object.values(modelMap).sort((a, b) => b.cost - a.cost),
+        byPhase: Object.values(phaseMap).sort((a, b) => b.cost - a.cost),
+        daily,
+      });
+    }
+
     // ── MAGIC LINK ──
     if (resource === 'magic-link') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

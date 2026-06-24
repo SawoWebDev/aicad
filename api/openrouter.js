@@ -10,6 +10,47 @@ import { serviceClient, applyCors, readJsonBody } from './_lib.js';
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+// Token-saving knob for the gather ('converse') phase only — it's the
+// back-and-forth Q&A, so dropping the oldest turns past this cap keeps recent
+// context while bounding token growth on long chats. The finalize ('analyze')
+// phase is never trimmed (it needs the full transcript to build the dataset).
+const MAX_CONVERSE_MESSAGES = 16;
+
+// Record one OpenRouter call's token/cost usage. Best-effort: a telemetry
+// failure (e.g. the usage_events table not migrated yet) must never break the
+// user-facing response, so all errors are swallowed.
+async function logUsage({ model, phase, usage }) {
+  try {
+    if (!usage) return;
+    const prompt = usage.prompt_tokens || 0;
+    const completion = usage.completion_tokens || 0;
+    await serviceClient().from('usage_events').insert({
+      model,
+      phase: phase || null,
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      total_tokens: usage.total_tokens || (prompt + completion),
+      // OpenRouter returns the real USD cost when `usage:{include:true}` is sent.
+      cost: typeof usage.cost === 'number' ? usage.cost : 0,
+    });
+  } catch (e) {
+    console.error('[usage] log failed:', e?.message || e);
+  }
+}
+
+// Build the system message. For Anthropic models on the repeated gather phase we
+// add a prompt-cache breakpoint so the (large, unchanging) system prompt is
+// billed once per session instead of every turn. Other providers cache
+// implicitly, and the one-shot finalize phase gains nothing from caching, so
+// both get a plain string.
+function buildSystemMessage(systemPrompt, model, phase) {
+  const text = systemPrompt || '';
+  if (phase === 'converse' && model.startsWith('anthropic/')) {
+    return { role: 'system', content: [{ type: 'text', text, cache_control: { type: 'ephemeral' } }] };
+  }
+  return { role: 'system', content: text };
+}
+
 async function loadSettings() {
   const svc = serviceClient();
   const { data, error } = await svc
@@ -107,19 +148,24 @@ export default async function handler(req, res) {
     if (type === 'chat') {
       const { messages, systemPrompt, phase } = body;
       if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages[] required' });
-      const model = modelForPhase(settings, phase === 'analyze' ? 'analyze' : 'converse');
+      const phaseResolved = phase === 'analyze' ? 'analyze' : 'converse';
+      const model = modelForPhase(settings, phaseResolved);
+      // Only role/content go upstream. Messages may carry extra fields (e.g.
+      // a per-message `model` slug used by the admin log viewer) that must
+      // not be forwarded to OpenRouter.
+      let outMessages = messages.map((m) => ({ role: m.role, content: m.content }));
+      // Gather-phase token saving: keep only the most recent turns.
+      if (phaseResolved === 'converse' && outMessages.length > MAX_CONVERSE_MESSAGES) {
+        outMessages = outMessages.slice(-MAX_CONVERSE_MESSAGES);
+      }
       const upstream = await fetch(OPENROUTER_URL, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           model,
-          // Only role/content go upstream. Messages may carry extra fields (e.g.
-          // a per-message `model` slug used by the admin log viewer) that must
-          // not be forwarded to OpenRouter.
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            ...messages.map((m) => ({ role: m.role, content: m.content })),
-          ],
+          messages: [buildSystemMessage(systemPrompt, model, phaseResolved), ...outMessages],
+          // Ask OpenRouter to return real token counts + USD cost in the response.
+          usage: { include: true },
         }),
       });
       const raw = await upstream.text();
@@ -127,6 +173,7 @@ export default async function handler(req, res) {
       if (!upstream.ok) return res.status(upstream.status).json({ error: data?.error?.message || ('HTTP ' + upstream.status) });
       const content = data.choices?.[0]?.message?.content;
       if (!content) return res.status(502).json({ error: 'No reply content returned.' });
+      await logUsage({ model, phase: phaseResolved, usage: data.usage });
       // Report the model actually used so the UI can label the reply accurately
       // (no dependence on a separately-fetched config that may not have loaded).
       return res.status(200).json({ content: typeof content === 'string' ? content : JSON.stringify(content), model });
@@ -146,11 +193,13 @@ export default async function handler(req, res) {
             aspect_ratio: settings.image_aspect_ratio,
             image_size: settings.image_size,
           },
+          usage: { include: true },
         }),
       });
       const raw = await upstream.text();
       let data; try { data = JSON.parse(raw); } catch { return res.status(502).json({ error: 'Non-JSON response from OpenRouter (HTTP ' + upstream.status + ')' }); }
       if (!upstream.ok) return res.status(upstream.status).json({ error: data?.error?.message || ('HTTP ' + upstream.status) });
+      await logUsage({ model: settings.image_model, phase: 'image', usage: data.usage });
       const imageUrl = extractImageUrl(data);
       if (!imageUrl) return res.status(502).json({ error: 'Model responded but no image was found. Try rephrasing the brief.' });
       return res.status(200).json({ imageUrl });

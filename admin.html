@@ -154,6 +154,37 @@
   .mg-good{ color:#4A9D4A; font-weight:600; } .mg-ok{ color:#C99A2C; font-weight:600; }
   .mg-foot{ font-size:0.72rem; color:var(--text-dim); line-height:1.5; margin-top:11px; display:flex; gap:8px; }
   .mg-foot i{ color:var(--brown-mid); margin-top:2px; }
+
+  /* ── Analytics ── */
+  .an-wrap{ max-width:980px; margin:0 auto; }
+  .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  @media (max-width:760px){ .stat-grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px; box-shadow:0 10px 30px rgba(139,94,60,0.06); }
+  .stat-card .sc-label{ font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); }
+  .stat-card .sc-cost{ font-size:1.5rem; font-weight:700; color:var(--brown-deep); margin:8px 0 2px; letter-spacing:0.3px; }
+  .stat-card .sc-sub{ font-size:0.7rem; color:var(--text-dim); }
+  .an-panel{ max-width:980px; }
+  .chart{ display:flex; align-items:flex-end; gap:3px; height:160px; padding:8px 0 0; }
+  .chart .bar-col{ flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; position:relative; }
+  .chart .bar{ width:100%; max-width:22px; border-radius:4px 4px 0 0; background:linear-gradient(180deg,var(--brown-mid),var(--brown-deep)); min-height:2px; transition:opacity 0.2s; }
+  .chart .bar-col:hover .bar{ opacity:0.78; }
+  .chart .bar-col .tip{
+    display:none; position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%); white-space:nowrap;
+    background:var(--black); color:#fff; font-size:0.66rem; font-weight:600; padding:4px 8px; border-radius:6px; z-index:5;
+  }
+  .chart .bar-col:hover .tip{ display:block; }
+  .chart-axis{ display:flex; gap:3px; margin-top:6px; }
+  .chart-axis span{ flex:1; text-align:center; font-size:0.54rem; color:var(--text-dim); overflow:hidden; }
+  .an-table{ width:100%; border-collapse:collapse; font-size:0.8rem; }
+  .an-table th{ font-size:0.6rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  .an-table td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  .an-table tr:last-child td{ border-bottom:none; }
+  .an-table td.num, .an-table th.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .an-table .mdl{ font-weight:600; color:var(--black); }
+  .an-empty{ color:var(--text-dim); font-size:0.8rem; padding:8px 2px; }
+  .an-warn{ background:rgba(201,48,44,0.08); border:1px solid rgba(201,48,44,0.25); color:#9c2c2a; border-radius:11px; padding:14px 16px; font-size:0.8rem; line-height:1.55; margin-bottom:20px; }
+  .an-warn b{ color:#7d211f; }
+  .an-warn code{ background:rgba(0,0,0,0.06); padding:1px 6px; border-radius:5px; font-size:0.74rem; }
 </style>
 </head>
 <body>
@@ -251,7 +282,10 @@
             <label class="field-label">Conversation model <span style="color:var(--text-dim);font-weight:600;text-transform:none;letter-spacing:0;">(Mode 2 only — the cheap info-gathering model)</span></label>
             <select id="sConvoModel">
               <option value="anthropic/claude-haiku-4.5">Claude Haiku 4.5 — anthropic/claude-haiku-4.5 (Fast · cheap · best at following the format rules · $)</option>
+              <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite — google/gemini-2.5-flash-lite (Fastest · very cheap · $)</option>
               <option value="google/gemini-2.5-flash">Gemini 2.5 Flash — google/gemini-2.5-flash (Fast · very cheap · $)</option>
+              <option value="deepseek/deepseek-v4-flash">DeepSeek V4 Flash — deepseek/deepseek-v4-flash (Cheapest · slower · test format first · $)</option>
+              <option value="tencent/hy3-preview">Tencent Hy3 preview — tencent/hy3-preview (Cheapest input · slower · test format first · $)</option>
               <option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6 — anthropic/claude-sonnet-4.6 (Strong · balanced · $$)</option>
               <option value="openai/gpt-5.4">GPT-5.4 — openai/gpt-5.4 (Advanced · balanced · $$)</option>
             </select>
@@ -267,10 +301,28 @@
                     <td>Default. Same family as Opus, so it reliably obeys the plain-text / no-em-dash / trigger-tag rules. Big savings, near-zero risk.</td>
                   </tr>
                   <tr>
+                    <td><b>Gemini 2.5 Flash Lite</b></td>
+                    <td><span class="mg-cost mg-1">$</span></td>
+                    <td><span class="mg-ok">Good</span></td>
+                    <td>Fastest option (~400ms, ~88 t/s) and very cheap. Best UX of the budget picks. Occasionally slips on formatting; the widget strips most of it.</td>
+                  </tr>
+                  <tr>
                     <td><b>Gemini 2.5 Flash</b></td>
                     <td><span class="mg-cost mg-1">$</span></td>
                     <td><span class="mg-ok">Good</span></td>
-                    <td>Cheapest. Occasionally slips on formatting (stray asterisks / dashes) — the widget strips most of that anyway. Pick for max savings.</td>
+                    <td>Cheap and fast. Occasionally slips on formatting (stray asterisks / dashes) — the widget strips most of that anyway.</td>
+                  </tr>
+                  <tr>
+                    <td><b>DeepSeek V4 Flash</b></td>
+                    <td><span class="mg-cost mg-1">$</span></td>
+                    <td><span class="mg-ok">Unverified</span></td>
+                    <td>Cheapest per token, but slower to reply (~15 t/s) and not from the Claude family — <b>test the trigger-tag handoff before relying on it</b>. If it drops the tag, the chat won't advance to the drawing.</td>
+                  </tr>
+                  <tr>
+                    <td><b>Tencent Hy3 preview</b></td>
+                    <td><span class="mg-cost mg-1">$</span></td>
+                    <td><span class="mg-ok">Unverified</span></td>
+                    <td>Cheapest input cost, but ~4.5s to first token. Same caveat: <b>verify it emits the trigger tag and obeys the plain-text rules</b> before using in production.</td>
                   </tr>
                   <tr>
                     <td><b>Claude Sonnet 4.6</b></td>
@@ -341,6 +393,13 @@
           <div class="msg-line" id="testMsg"></div>
         </div>
       </section>
+
+      <!-- ── ANALYTICS ── -->
+      <section id="analyticsTab" class="hidden">
+        <div class="an-wrap" id="anBody">
+          <div class="an-empty"><i class="fas fa-circle-notch fa-spin"></i> Loading usage…</div>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -350,17 +409,20 @@
   const esc = CMS.esc, fmt = CMS.fmt;
   const usersTab = document.getElementById('usersTab');
   const settingsTab = document.getElementById('settingsTab');
+  const analyticsTab = document.getElementById('analyticsTab');
   const gate = document.getElementById('gate');
   const phIcon = document.getElementById('phIcon');
   const phTitle = document.getElementById('phTitle');
   const phSub = document.getElementById('phSub');
   const phActions = document.getElementById('phActions');
-  // The hosting shell loads this page as admin.html?tab=users or ?tab=settings.
-  const tab = new URLSearchParams(location.search).get('tab') === 'settings' ? 'settings' : 'users';
+  // The hosting shell loads this page as admin.html?tab=users|settings|analytics.
+  const tabParam = new URLSearchParams(location.search).get('tab');
+  const tab = (tabParam === 'settings' || tabParam === 'analytics') ? tabParam : 'users';
 
   const TITLES = {
-    users:    { icon:'fa-users-gear', label:'User Management', sub:'Create and manage CMS accounts' },
-    settings: { icon:'fa-gear',       label:'Settings',        sub:'OpenRouter, models & sales notifications' },
+    users:     { icon:'fa-users-gear', label:'User Management', sub:'Create and manage CMS accounts' },
+    settings:  { icon:'fa-gear',       label:'Settings',        sub:'OpenRouter, models & sales notifications' },
+    analytics: { icon:'fa-chart-line', label:'Usage Analytics', sub:'Token consumption & spend by model' },
   };
 
   // Password reveal eye toggles (shared across the page).
@@ -379,15 +441,15 @@
     phTitle.textContent = it.label;
     phSub.textContent = it.sub;
     phActions.innerHTML = '';
-    if(t === 'users'){
+    if(t === 'users' || t === 'analytics'){
       const btn = document.createElement('button');
       btn.className = 'btn'; btn.innerHTML = '<i class="fas fa-rotate-right"></i> Refresh';
-      btn.addEventListener('click', loadUsers);
+      btn.addEventListener('click', t === 'analytics' ? loadAnalytics : loadUsers);
       phActions.appendChild(btn);
     }
   }
   function gateOut(){
-    usersTab.classList.add('hidden'); settingsTab.classList.add('hidden');
+    usersTab.classList.add('hidden'); settingsTab.classList.add('hidden'); analyticsTab.classList.add('hidden');
     phIcon.innerHTML = '<i class="fas fa-ban"></i>';
     phTitle.textContent = 'Admins only';
     phSub.textContent = 'You need the admin role to view this page.';
@@ -659,9 +721,119 @@
     finally{ btn.disabled = false; btn.innerHTML = prev; }
   });
 
+  // ── Analytics ──
+  const anBody = document.getElementById('anBody');
+  const money = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money4 = (n) => '$' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  const compact = (n) => {
+    n = Number(n) || 0;
+    if(n >= 1e9) return (n/1e9).toFixed(2).replace(/\.?0+$/,'') + 'B';
+    if(n >= 1e6) return (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M';
+    if(n >= 1e3) return (n/1e3).toFixed(1).replace(/\.?0+$/,'') + 'K';
+    return String(n);
+  };
+  const shortModel = (m) => String(m || '').split('/').pop();
+
+  function statCard(label, win, sub){
+    return '<div class="stat-card">' +
+      '<div class="sc-label">' + label + '</div>' +
+      '<div class="sc-cost">' + money(win.cost) + '</div>' +
+      '<div class="sc-sub">' + compact(win.tokens) + ' tokens · ' + (win.calls || 0) + ' calls' + (sub ? ' · ' + sub : '') + '</div>' +
+    '</div>';
+  }
+
+  function renderChart(daily){
+    const max = Math.max(...daily.map(d => d.cost), 0.0000001);
+    const bars = daily.map(d => {
+      const h = Math.round((d.cost / max) * 100);
+      return '<div class="bar-col">' +
+        '<span class="tip">' + d.day.slice(5) + ' · ' + money4(d.cost) + ' · ' + compact(d.tokens) + ' tok</span>' +
+        '<div class="bar" style="height:' + h + '%"></div>' +
+      '</div>';
+    }).join('');
+    // Sparse axis labels (every ~5 days) to avoid clutter.
+    const axis = daily.map((d, i) => '<span>' + ((i % 5 === 0 || i === daily.length - 1) ? d.day.slice(5) : '') + '</span>').join('');
+    return '<div class="chart">' + bars + '</div><div class="chart-axis">' + axis + '</div>';
+  }
+
+  function renderAnalytics(a){
+    const t = a.totals || {};
+    const blank = { cost:0, tokens:0, calls:0 };
+    let html = '';
+
+    if(a.needsMigration){
+      html += '<div class="an-warn"><b>Usage table not found.</b> Run the <code>usage_events</code> migration in Supabase (the SQL was provided), then refresh. ' +
+        'New AI calls will start recording automatically once the table exists.</div>';
+    }
+
+    html += '<div class="stat-grid">' +
+      statCard('Today', t.today || blank) +
+      statCard('Yesterday', t.yesterday || blank) +
+      statCard('Last 7 days', t.last7 || blank) +
+      statCard('Last 30 days', t.last30 || blank) +
+    '</div>';
+
+    html += '<div class="panel an-panel" style="margin:0 auto 20px;">' +
+      '<div class="section-label"><i class="fas fa-chart-column"></i> Daily spend (last 30 days)</div>' +
+      ((a.daily && a.daily.some(d => d.cost > 0)) ? renderChart(a.daily) : '<div class="an-empty">No usage recorded yet.</div>') +
+    '</div>';
+
+    const byModel = a.byModel || [];
+    html += '<div class="panel an-panel" style="margin:0 auto 20px;">' +
+      '<div class="section-label"><i class="fas fa-robot"></i> By model (last 30 days)</div>';
+    if(!byModel.length){
+      html += '<div class="an-empty">No usage recorded yet.</div>';
+    } else {
+      html += '<table class="an-table"><thead><tr>' +
+        '<th>Model</th><th class="num">Calls</th><th class="num">Input</th><th class="num">Output</th><th class="num">Total tokens</th><th class="num">Cost</th>' +
+        '</tr></thead><tbody>' +
+        byModel.map(m => '<tr>' +
+          '<td class="mdl" title="' + esc(m.model) + '">' + esc(shortModel(m.model)) + '</td>' +
+          '<td class="num">' + (m.calls || 0) + '</td>' +
+          '<td class="num">' + compact(m.prompt_tokens) + '</td>' +
+          '<td class="num">' + compact(m.completion_tokens) + '</td>' +
+          '<td class="num">' + compact(m.tokens) + '</td>' +
+          '<td class="num">' + money4(m.cost) + '</td>' +
+        '</tr>').join('') +
+        '</tbody></table>';
+    }
+    html += '</div>';
+
+    const byPhase = a.byPhase || [];
+    if(byPhase.length){
+      const PH = { converse:'Gather (chat)', analyze:'Finalize', image:'Image render', other:'Other' };
+      html += '<div class="panel an-panel" style="margin:0 auto;">' +
+        '<div class="section-label"><i class="fas fa-diagram-project"></i> By pipeline phase (last 30 days)</div>' +
+        '<table class="an-table"><thead><tr><th>Phase</th><th class="num">Calls</th><th class="num">Total tokens</th><th class="num">Cost</th></tr></thead><tbody>' +
+        byPhase.map(p => '<tr>' +
+          '<td class="mdl">' + esc(PH[p.phase] || p.phase) + '</td>' +
+          '<td class="num">' + (p.calls || 0) + '</td>' +
+          '<td class="num">' + compact(p.tokens) + '</td>' +
+          '<td class="num">' + money4(p.cost) + '</td>' +
+        '</tr>').join('') +
+        '</tbody></table></div>';
+    }
+
+    anBody.innerHTML = html;
+  }
+
+  async function loadAnalytics(){
+    anBody.innerHTML = '<div class="an-empty"><i class="fas fa-circle-notch fa-spin"></i> Loading usage…</div>';
+    try{
+      let tz = '';
+      try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(_){ }
+      const a = await CMS.get('/api/admin?resource=analytics' + (tz ? '&tz=' + encodeURIComponent(tz) : ''));
+      renderAnalytics(a);
+    }catch(e){
+      if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
+      anBody.innerHTML = '<div class="an-warn">' + esc(e.message) + '</div>';
+    }
+  }
+
   // ── Render the requested tab only (navigation lives in the shell header) ──
   setTitle(tab);
   if(tab === 'settings'){ settingsTab.classList.remove('hidden'); loadSettings(); }
+  else if(tab === 'analytics'){ analyticsTab.classList.remove('hidden'); loadAnalytics(); }
   else { usersTab.classList.remove('hidden'); loadUsers(); }
 })();
 </script>
