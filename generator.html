@@ -120,6 +120,7 @@
       <p>Technical sauna drawing synthesis</p>
     </div>
     <div class="actions">
+      <button class="metrics-toggle" id="previewAnimBtn" title="Play the loading animation in the preview pane"><i class="fas fa-film"></i> <span>Preview loading</span></button>
       <button class="metrics-toggle" id="metricsToggle" title="Toggle live token/cost metrics"><i class="fas fa-chart-simple"></i> <span>Hide metrics</span></button>
       <div class="log-status" id="modelStatus" title="AI model currently in use" style="display:none;">
         <i class="fas fa-microchip" style="font-size:0.8rem;"></i>
@@ -213,6 +214,19 @@
   }
   setMetricsCollapsed(localStorage.getItem('cms-metrics-collapsed') === '1');
   metricsToggle.addEventListener('click', () => setMetricsCollapsed(!metricsBar.classList.contains('collapsed')));
+
+  // ── Preview loading animation ──
+  // Toggle the embedded generator's loading animation in the preview pane so
+  // it can be inspected without running a real generation.
+  const genFrame = document.getElementById('genFrame');
+  const previewAnimBtn = document.getElementById('previewAnimBtn');
+  let demoOn = false;
+  previewAnimBtn.addEventListener('click', () => {
+    demoOn = !demoOn;
+    try{ genFrame.contentWindow.postMessage({ type: 'sawocad-demo-loading', on: demoOn }, '*'); }catch(e){}
+    previewAnimBtn.querySelector('span').textContent = demoOn ? 'Stop preview' : 'Preview loading';
+    previewAnimBtn.querySelector('i').className = demoOn ? 'fas fa-stop' : 'fas fa-film';
+  });
 
   window.addEventListener('message', function(e){
     const d = e.data;

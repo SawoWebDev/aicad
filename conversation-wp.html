@@ -216,10 +216,10 @@
 
   #sawocad-app .sc-frame{
     border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-    max-width: 100%; max-height: 100%;
+    display: flex; min-width: 0; min-height: 0; max-width: 100%; max-height: 100%;
     box-shadow: 0 20px 55px rgba(140,100,68,0.22); background:#fff;
   }
-  #sawocad-app .sc-frame img{ display: block; max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+  #sawocad-app .sc-frame img{ display: block; min-height: 0; max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
 
   #sawocad-app .sc-error{
     text-align: center; max-width: 440px; white-space: pre-wrap;
@@ -229,6 +229,9 @@
 
   #sawocad-app .sc-scan-wrap{ text-align: center; }
   #sawocad-app .sc-scan{
+    --ink: 0.15;     /* 0 = pale pencil · 1 = full ink */
+    --detail: 0;     /* mock measurement scribbles reveal */
+    --scan-cycle: 7s;
     width: 320px; max-width: 70vw; height: 210px; border: 1px solid var(--line);
     border-radius: 12px; position: relative; overflow: hidden; margin: 0 auto 16px;
     background: #fff; box-shadow: 0 10px 30px rgba(140,100,68,0.16);
@@ -256,22 +259,39 @@
 
   #sawocad-app .sc-scan svg{ position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
   #sawocad-app .sc-grid-bg{ stroke: #ece4da; stroke-width: 0.5; }
+  /* Strokes continuously re-draw (loop) and darken from pale pencil → ink via --ink. */
   #sawocad-app .sc-ln{
-    fill: none; stroke: #243140; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round;
-    stroke-dasharray: 1; stroke-dashoffset: 1; animation: sc-draw 1s ease forwards;
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+    stroke: color-mix(in srgb, #bdb6ab, #243140 calc(var(--ink) * 100%));
+    stroke-width: calc(0.55px + var(--ink) * 0.85px);
+    opacity: calc(0.32 + var(--ink) * 0.68);
+    stroke-dasharray: 1; stroke-dashoffset: 1;
+    animation: sc-draw-loop var(--scan-cycle) ease-in-out infinite;
+    transition: stroke 0.4s ease, stroke-width 0.4s ease, opacity 0.4s ease;
   }
-  #sawocad-app .sc-ln.thin{ stroke: #51708d; stroke-width: 0.9; }
-  #sawocad-app .sc-ln.dim{ stroke: #b06a3a; stroke-width: 0.8; }
-  #sawocad-app .sc-num{
-    fill: #b06a3a; font-family: 'Courier New', monospace; font-size: 8px; font-weight: 700;
-    opacity: 0; animation: sc-fade 0.5s ease forwards;
+  #sawocad-app .sc-ln.thin{
+    stroke: color-mix(in srgb, #c4bdb2, #51708d calc(var(--ink) * 100%));
+    stroke-width: calc(0.45px + var(--ink) * 0.55px);
   }
-  #sawocad-app .sc-lbl{
-    fill: #243140; font-family: 'Courier New', monospace; font-size: 6.5px; letter-spacing: 0.04em;
-    opacity: 0; animation: sc-fade 0.5s ease forwards;
+  #sawocad-app .sc-ln.dim{
+    stroke: color-mix(in srgb, #cdb9a6, #b06a3a calc(var(--ink) * 100%));
+    stroke-width: calc(0.4px + var(--ink) * 0.5px);
   }
-  @keyframes sc-draw{ to{ stroke-dashoffset: 0; } }
-  @keyframes sc-fade{ to{ opacity: 1; } }
+  /* Mock measurement scribbles — fade/draw in only near the end via --detail. */
+  #sawocad-app .sc-detail{ opacity: var(--detail); transition: opacity 0.6s ease; }
+  #sawocad-app .sc-scribble{
+    fill: none; stroke-linecap: round; stroke-linejoin: round;
+    stroke: color-mix(in srgb, #cdb9a6, #b06a3a calc(var(--ink) * 100%));
+    stroke-width: 0.8px; opacity: calc(0.5 + var(--ink) * 0.5);
+    stroke-dasharray: 1; stroke-dashoffset: 1;
+    animation: sc-draw-loop var(--scan-cycle) ease-in-out infinite;
+  }
+  @keyframes sc-draw-loop{
+    0%   { stroke-dashoffset: 1; }
+    34%  { stroke-dashoffset: 0; }
+    86%  { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 1; }
+  }
 
   #sawocad-app .sc-col-head #sc-downloadBtn{
     margin-left: auto; display: none; align-items: center; gap: 6px;
@@ -962,36 +982,55 @@ ${REFERENCE_TEMPLATE}`;
       '<path class="sc-ln thin" pathLength="1" d="M150 170 A28 28 0 0 0 150 142" fill="none" style="animation-delay:2.2s"/>' +
       '<line class="sc-ln thin" pathLength="1" x1="150" y1="170" x2="150" y2="142" style="animation-delay:2.35s"/>' +
 
-      '<line class="sc-ln dim" pathLength="1" x1="40" y1="46" x2="190" y2="46" style="animation-delay:2.5s"/>' +
-      '<line class="sc-ln dim" pathLength="1" x1="40" y1="42" x2="40" y2="50" style="animation-delay:2.5s"/>' +
-      '<line class="sc-ln dim" pathLength="1" x1="190" y1="42" x2="190" y2="50" style="animation-delay:2.5s"/>' +
-      '<text class="sc-num" x="115" y="44" text-anchor="middle" style="animation-delay:2.8s">2400</text>' +
-
-      '<line class="sc-ln dim" pathLength="1" x1="33" y1="55" x2="33" y2="170" style="animation-delay:2.9s"/>' +
-      '<line class="sc-ln dim" pathLength="1" x1="29" y1="55" x2="37" y2="55" style="animation-delay:2.9s"/>' +
-      '<line class="sc-ln dim" pathLength="1" x1="29" y1="170" x2="37" y2="170" style="animation-delay:2.9s"/>' +
-      '<text class="sc-num" x="31" y="114" text-anchor="middle" transform="rotate(-90 31 114)" style="animation-delay:3.2s">2100</text>' +
-
       '<rect class="sc-ln" pathLength="1" x="212" y="58" width="78" height="68" style="animation-delay:1.3s"/>' +
       '<line class="sc-ln thin" pathLength="1" x1="212" y1="104" x2="290" y2="104" style="animation-delay:1.7s"/>' +
       '<line class="sc-ln thin" pathLength="1" x1="212" y1="86" x2="256" y2="86" style="animation-delay:2.0s"/>' +
-      '<text class="sc-lbl" x="251" y="68" text-anchor="middle" style="animation-delay:2.3s">SECTION A-A</text>' +
 
       '<rect class="sc-ln" pathLength="1" x="212" y="140" width="78" height="40" style="animation-delay:3.0s"/>' +
       '<line class="sc-ln thin" pathLength="1" x1="212" y1="158" x2="290" y2="158" style="animation-delay:3.3s"/>' +
       '<line class="sc-ln thin" pathLength="1" x1="252" y1="158" x2="252" y2="180" style="animation-delay:3.45s"/>' +
-      '<text class="sc-lbl" x="217" y="152" style="animation-delay:3.5s">SAWO CAD</text>' +
-      '<text class="sc-lbl" x="217" y="171" style="animation-delay:3.7s">SAUNA</text>' +
-      '<text class="sc-lbl" x="257" y="171" style="animation-delay:3.85s">REV A</text>' +
+
+      // Mock measurement scribbles (no numerals) — revealed late via .sc-detail
+      '<g class="sc-detail">' +
+        // top horizontal dimension line + ticks + squiggle "number"
+        '<line class="sc-scribble" pathLength="1" x1="40" y1="46" x2="190" y2="46" style="animation-delay:2.5s"/>' +
+        '<line class="sc-scribble" pathLength="1" x1="40" y1="42" x2="40" y2="50" style="animation-delay:2.5s"/>' +
+        '<line class="sc-scribble" pathLength="1" x1="190" y1="42" x2="190" y2="50" style="animation-delay:2.55s"/>' +
+        '<path class="sc-scribble" pathLength="1" d="M106 44 l4 -3 3 3 4 -3 3 3" style="animation-delay:2.8s"/>' +
+        // left vertical dimension line + ticks + squiggle
+        '<line class="sc-scribble" pathLength="1" x1="33" y1="55" x2="33" y2="170" style="animation-delay:2.9s"/>' +
+        '<line class="sc-scribble" pathLength="1" x1="29" y1="55" x2="37" y2="55" style="animation-delay:2.9s"/>' +
+        '<line class="sc-scribble" pathLength="1" x1="29" y1="170" x2="37" y2="170" style="animation-delay:2.95s"/>' +
+        '<path class="sc-scribble" pathLength="1" d="M28 118 l-3 -4 -3 4 3 4 -3 4" style="animation-delay:3.2s"/>' +
+        // section title squiggle (handwritten, no letters)
+        '<path class="sc-scribble" pathLength="1" d="M226 66 q5 -4 10 0 t10 0 t10 0" style="animation-delay:2.3s"/>' +
+        // leader line + scribble note in section
+        '<line class="sc-scribble" pathLength="1" x1="248" y1="95" x2="270" y2="80" style="animation-delay:3.5s"/>' +
+        '<path class="sc-scribble" pathLength="1" d="M270 80 q4 -3 8 0 t8 0" style="animation-delay:3.6s"/>' +
+        // title-block scribbles (no letters)
+        '<path class="sc-scribble" pathLength="1" d="M217 152 q6 -3 12 0 t12 0" style="animation-delay:3.7s"/>' +
+        '<path class="sc-scribble" pathLength="1" d="M217 170 q5 -3 10 0 t10 0" style="animation-delay:3.85s"/>' +
+        '<path class="sc-scribble" pathLength="1" d="M255 170 q4 -3 8 0 t8 0" style="animation-delay:3.95s"/>' +
+      '</g>' +
     '</svg>';
 
   function renderScan(label){
-    output.innerHTML = '<div class="sc-scan-wrap"><div class="sc-scan">' + CAD_SCAN_SVG + '</div>' +
+    output.innerHTML = '<div class="sc-scan-wrap"><div class="sc-scan" id="sc-scanArt">' + CAD_SCAN_SVG + '</div>' +
       '<div class="sc-scan-label" id="sc-scanLabel">' + label + '</div>' +
       '<div class="sc-scan-progress"><div class="sc-scan-progress-fill" id="sc-scanFill"></div></div>' +
       '<div class="sc-scan-pct" id="sc-scanPct">0%</div></div>';
     outActions.classList.remove('visible');
     setProgress(progValue);
+  }
+  // Map progress → drawing look: pale pencil (0.15) → full ink (1) by ~90%,
+  // and the mock measurement scribbles emerge only from ~80% onward.
+  function setScanLook(p){
+    const art = document.getElementById('sc-scanArt');
+    if(!art) return;
+    const ink = 0.15 + 0.85 * Math.min(1, p / 90);
+    const detail = Math.max(0, Math.min(1, (p - 80) / 15));
+    art.style.setProperty('--ink', ink.toFixed(3));
+    art.style.setProperty('--detail', detail.toFixed(3));
   }
   function updateScanLabel(text){
     const el = document.getElementById('sc-scanLabel');
@@ -1004,6 +1043,7 @@ ${REFERENCE_TEMPLATE}`;
     const pct = document.getElementById('sc-scanPct');
     if(fill) fill.style.width = p + '%';
     if(pct) pct.textContent = Math.round(p) + '%';
+    setScanLook(p);
   }
   function progLabelFor(p){
     if(p < 30) return 'Plotting outline…';
@@ -1015,12 +1055,12 @@ ${REFERENCE_TEMPLATE}`;
     stopProgress();
     setProgress(0);
     const start = Date.now();
-    const cap = 95, t1 = 13;
+    const cap = 95, t1 = 22;
     progTimer = setInterval(() => {
       const t = (Date.now() - start) / 1000;
       const eased = t <= t1
         ? (t / t1) * 80
-        : 80 + (cap - 80) * (1 - Math.exp(-(t - t1) / 11));
+        : 80 + (cap - 80) * (1 - Math.exp(-(t - t1) / 16));
       const next = Math.max(progValue, Math.min(cap, eased));
       setProgress(next);
       updateScanLabel(progLabelFor(next));
@@ -1033,9 +1073,39 @@ ${REFERENCE_TEMPLATE}`;
     const fill = document.getElementById('sc-scanFill');
     if(fill) fill.style.transition = 'width 0.7s ease';
     setProgress(100);
+    const art = document.getElementById('sc-scanArt');
+    if(art){ art.style.setProperty('--ink', '1'); art.style.setProperty('--detail', '1'); }
     return new Promise((resolve) => setTimeout(resolve, 780));
   }
   function stopProgress(){ if(progTimer){ clearInterval(progTimer); progTimer = null; } }
+
+  // ── Demo loading preview (triggered from the CMS header button) ──
+  // Plays the loading animation in the preview pane on a loop so it can be
+  // inspected without running a real generation. Independent of progTimer.
+  let demoTimer = null;
+  function startDemoLoading(){
+    if(busy) return;            // never collide with a real generation
+    stopDemoLoading();
+    renderScan('Preview — loading animation…');
+    let start = Date.now();
+    const cycle = 9;            // seconds for one 0→95% sweep before looping
+    demoTimer = setInterval(() => {
+      let t = (Date.now() - start) / 1000;
+      if(t >= cycle + 0.8){ start = Date.now(); t = 0; }   // loop back to pale
+      const p = Math.min(95, (t / cycle) * 95);
+      setProgress(p);
+      updateScanLabel(progLabelFor(p));
+    }, 120);
+  }
+  function stopDemoLoading(){
+    if(demoTimer){ clearInterval(demoTimer); demoTimer = null; }
+  }
+  window.addEventListener('message', function(e){
+    const d = e.data;
+    if(!d || d.type !== 'sawocad-demo-loading') return;
+    if(d.on){ startDemoLoading(); }
+    else { stopDemoLoading(); if(!currentImageUrl) renderEmpty(); }
+  });
   function renderError(message){
     output.innerHTML = '';
     const div = document.createElement('div');
