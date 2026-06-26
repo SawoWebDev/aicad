@@ -965,31 +965,56 @@
     return '<div class="schart">' + cols + '</div><div class="chart-axis">' + axis + '</div>' + lg;
   }
 
-  // OpenRouter account credit — a full-width card above the model spotlights.
-  // Account-wide (independent of the selected range), so it gets its own row.
-  // Low remaining credit turns the accent amber/red so it's easy to spot.
-  function balanceCard(){
+  // OpenRouter account row — 4 cards: balance, today's spend, this month's spend, runway.
+  // Account-wide data from the management key, independent of the selected range.
+  function balanceCards(){
     const b = anBalance;
-    let big, sub, accent = '#0EA5E9';
-    if(b === null){ big = '<i class="fas fa-circle-notch fa-spin"></i>'; sub = 'Checking OpenRouter…'; }
-    else if(b.configured === false){ big = '—'; sub = 'No OpenRouter API key configured'; accent = '#94A3B8'; }
-    else if(b.error){ big = '—'; sub = 'Could not fetch balance: ' + esc(b.error); accent = '#EF4444'; }
-    else if(b.remaining == null && b.total_credits == null){
-      big = money(b.total_usage || 0) + ' used';
-      sub = 'No spend limit set' + (b.is_free_tier ? ' (free tier)' : '') + (b.label ? ' · key: ' + esc(b.label) : '');
-      if(b.needsMgmtKey) sub += ' · add a Management Key in Settings for exact credit balance';
-    } else {
-      const rem = Number(b.remaining) || 0;
-      big = money(rem);
-      sub = money(b.total_usage||0) + ' used' + (b.total_credits != null ? ' of ' + money(b.total_credits) + ' limit' : '');
-      if(b.is_free_tier) sub += ' (free tier)';
-      if(b.needsMgmtKey) sub += ' · add a Management Key in Settings for exact credit balance';
-      if(rem <= 5) accent = '#EF4444';
-      else if(rem <= 20) accent = '#F59E0B';
+    // Loading / error / unconfigured: show a single full-width card.
+    if(b === null){
+      return '<div class="stat-grid">' + card('OpenRouter balance', '<i class="fas fa-circle-notch fa-spin"></i>', 'Checking OpenRouter…', '#0EA5E9', 'fa-wallet') + '</div>';
     }
-    return '<div class="stat-grid"><div class="stat-card" style="border-top:3px solid ' + accent + '">' +
-      '<div class="sc-label"><i class="fas fa-wallet"></i> OpenRouter balance</div>' +
-      '<div class="sc-cost">' + big + '</div><div class="sc-sub">' + sub + '</div></div></div>';
+    if(b.configured === false){
+      return '<div class="stat-grid">' + card('OpenRouter balance', '—', 'No OpenRouter API key configured', '#94A3B8', 'fa-wallet') + '</div>';
+    }
+    if(b.error){
+      return '<div class="stat-grid">' + card('OpenRouter balance', '—', 'Could not fetch: ' + esc(b.error), '#EF4444', 'fa-wallet') + '</div>';
+    }
+
+    let h = '<div class="stat-grid">';
+
+    // Card 1: Balance remaining
+    const rem = Number(b.remaining) || 0;
+    let balAccent = '#0EA5E9';
+    if(rem <= 5) balAccent = '#EF4444';
+    else if(rem <= 20) balAccent = '#F59E0B';
+    const balSub = money(b.total_usage||0) + ' used of ' + money(b.total_credits||0) + ' purchased';
+    h += card('OpenRouter balance', money(rem), balSub, balAccent, 'fa-wallet');
+
+    // Card 2: Today's spend
+    const sp = b.spend || {};
+    const todaySpend = Number(sp.daily) || 0;
+    h += card("Today's spend", money4(todaySpend), todaySpend > 0 ? (money4(todaySpend/24) + '/hr avg') : 'No spend today', '#F97316', 'fa-clock');
+
+    // Card 3: This month's spend
+    const monthSpend = Number(sp.monthly) || 0;
+    const dayOfMonth = new Date().getDate();
+    const dailyAvg = dayOfMonth > 0 ? monthSpend / dayOfMonth : 0;
+    h += card("This month's spend", money(monthSpend), dailyAvg > 0 ? (money4(dailyAvg) + '/day avg') : 'No spend this month', '#8B5CF6', 'fa-calendar');
+
+    // Card 4: Runway (days until credits run out)
+    const runway = b.runway_days;
+    let runBig, runSub, runAccent = '#10B981';
+    if(runway == null || dailyAvg <= 0){ runBig = '—'; runSub = 'Not enough data to estimate'; runAccent = '#94A3B8'; }
+    else {
+      runBig = runway + ' days';
+      runSub = 'at ' + money4(dailyAvg) + '/day burn rate';
+      if(runway <= 3) runAccent = '#EF4444';
+      else if(runway <= 7) runAccent = '#F59E0B';
+    }
+    h += card('Runway', runBig, runSub, runAccent, 'fa-gas-pump');
+
+    h += '</div>';
+    return h;
   }
 
   // ── Tab 1: Overview (range selector + headline cards + embedded AI summary) ──
@@ -998,7 +1023,7 @@
     const g = grand(), perf = anData.performance || {};
     const bm = (anData.byModel || []);
     let h = '<div class="an-range" id="anRange">' + RANGE_OPTS.map(([v,l]) => '<button class="' + (String(anRange)===v?'active':'') + '" data-range="' + v + '"><i class="fas fa-calendar-day"></i>' + l + '</button>').join('') + '</div>';
-    if(!bm.length){ return h + balanceCard() + emptyPanel('No usage recorded for ' + rangeLabel().toLowerCase() + '.'); }
+    if(!bm.length){ return h + balanceCards() + emptyPanel('No usage recorded for ' + rangeLabel().toLowerCase() + '.'); }
     const mostUsed = bm.slice().sort((a,b)=>b.calls-a.calls)[0];
     const dearest = bm.slice().sort((a,b)=>b.cost-a.cost)[0];
     const byMode = anData.byMode || [], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
@@ -1010,7 +1035,7 @@
     h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E', 'fa-sack-dollar');
     h += card('Models used', fmtInt(bm.length), perf.avgLatencyMs!=null ? ('avg ' + fmtMs(perf.avgLatencyMs) + ' latency') : 'latency: not recorded yet', '#A855F7', 'fa-robot');
     h += '</div>';
-    h += balanceCard();
+    h += balanceCards();
     // Row 2: the two model spotlights, each spanning half the width.
     h += '<div class="stat-grid stat-grid-2">';
     h += card('Most used model', modelBadge(mostUsed.model), fmtInt(mostUsed.calls) + ' calls · ' + compact(mostUsed.tokens) + ' tok', colorFor(mostUsed.model), 'fa-fire');

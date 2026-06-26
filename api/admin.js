@@ -287,20 +287,44 @@ export default async function handler(req, res) {
 
       try {
         // Management key → /api/v1/credits returns actual purchased credits vs used.
+        // Also fetch /api/v1/keys for per-key spend breakdowns (daily/weekly/monthly).
         if (mgmtKey) {
-          const creditsResp = await fetch('https://openrouter.ai/api/v1/credits', {
-            headers: { 'Authorization': 'Bearer ' + mgmtKey },
-          });
+          const mgmtHeaders = { 'Authorization': 'Bearer ' + mgmtKey };
+          const [creditsResp, keysResp] = await Promise.all([
+            fetch('https://openrouter.ai/api/v1/credits', { headers: mgmtHeaders }),
+            fetch('https://openrouter.ai/api/v1/keys', { headers: mgmtHeaders }).catch(() => null),
+          ]);
           if (creditsResp.ok) {
             const cd = await creditsResp.json().catch(() => null);
             const credits = Number(cd?.data?.total_credits) || 0;
             const used = Number(cd?.data?.total_usage) || 0;
+            // Aggregate spend velocity from all API keys.
+            let spend = { daily: 0, weekly: 0, monthly: 0 };
+            let keys = [];
+            if (keysResp && keysResp.ok) {
+              const kd = await keysResp.json().catch(() => null);
+              const arr = Array.isArray(kd?.data) ? kd.data : [];
+              for (const k of arr) {
+                const d = Number(k.usage_daily) || 0;
+                const w = Number(k.usage_weekly) || 0;
+                const m = Number(k.usage_monthly) || 0;
+                spend.daily += d; spend.weekly += w; spend.monthly += m;
+                keys.push({
+                  name: k.name || k.label || '(unnamed)',
+                  usage: Number(k.usage) || 0,
+                  usage_daily: d, usage_weekly: w, usage_monthly: m,
+                  disabled: !!k.disabled,
+                });
+              }
+            }
+            const remaining = credits - used;
+            const avgDaily = spend.monthly > 0 ? spend.monthly / 30 : (spend.weekly > 0 ? spend.weekly / 7 : spend.daily);
             return res.status(200).json({
-              configured: true, total_credits: credits, total_usage: used, remaining: credits - used,
+              configured: true, total_credits: credits, total_usage: used, remaining,
+              spend, keys,
+              runway_days: avgDaily > 0 ? Math.floor(remaining / avgDaily) : null,
             });
           }
-          // If the management key failed, surface a clear error rather than
-          // silently falling through to the regular key (which can't show credits).
           const err = await creditsResp.json().catch(() => ({}));
           return res.status(200).json({
             configured: true,
