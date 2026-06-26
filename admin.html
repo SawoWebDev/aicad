@@ -965,8 +965,8 @@
     return '<div class="schart">' + cols + '</div><div class="chart-axis">' + axis + '</div>' + lg;
   }
 
-  // OpenRouter account row — 4 cards: balance, today's spend, this month's spend, runway.
-  // Account-wide data from the management key, independent of the selected range.
+  // Row 2: balance + business metrics (4 cards).
+  // Balance is account-wide; the other 3 respect the selected time range.
   function balanceCards(){
     const b = anBalance;
     // Loading / error / unconfigured: show a single full-width card.
@@ -990,28 +990,40 @@
     const balSub = money(b.total_usage||0) + ' used of ' + money(b.total_credits||0) + ' purchased';
     h += card('OpenRouter balance', money(rem), balSub, balAccent, 'fa-wallet');
 
-    // Card 2: Today's spend
-    const sp = b.spend || {};
-    const todaySpend = Number(sp.daily) || 0;
-    h += card("Today's spend", money4(todaySpend), todaySpend > 0 ? (money4(todaySpend/24) + '/hr avg') : 'No spend today', '#F97316', 'fa-clock');
+    // Cards 2-4: business metrics from usage_events (anData).
+    const g = anData ? grand() : { calls:0, cost:0 };
+    const imgPhase = anData ? (anData.byPhase || []).find(p => p.phase === 'image') : null;
+    const drawings = imgPhase ? imgPhase.calls : 0;
+    const msgs = anData ? (anData.messages || []) : [];
 
-    // Card 3: This month's spend
-    const monthSpend = Number(sp.monthly) || 0;
-    const dayOfMonth = new Date().getDate();
-    const dailyAvg = dayOfMonth > 0 ? monthSpend / dayOfMonth : 0;
-    h += card("This month's spend", money(monthSpend), dailyAvg > 0 ? (money4(dailyAvg) + '/day avg') : 'No spend this month', '#8B5CF6', 'fa-calendar');
+    // Card 2: Drawings generated
+    const drawSub = drawings > 0
+      ? (money4(imgPhase.cost) + ' image cost · ' + Math.round(imgPhase.cost / g.cost * 100) + '% of total')
+      : 'No drawings in ' + rangeLabel().toLowerCase();
+    h += card('Drawings generated', fmtInt(drawings), drawSub, '#F97316', 'fa-image');
 
-    // Card 4: Runway (days until credits run out)
-    const runway = b.runway_days;
-    let runBig, runSub, runAccent = '#10B981';
-    if(runway == null || dailyAvg <= 0){ runBig = '—'; runSub = 'Not enough data to estimate'; runAccent = '#94A3B8'; }
-    else {
-      runBig = runway + ' days';
-      runSub = 'at ' + money4(dailyAvg) + '/day burn rate';
-      if(runway <= 3) runAccent = '#EF4444';
-      else if(runway <= 7) runAccent = '#F59E0B';
+    // Card 3: Avg turns per session (converse-phase messages grouped by session)
+    const sessMap = {};
+    for(const r of msgs){
+      if(r.phase === 'converse' && r.session_id){
+        sessMap[r.session_id] = (sessMap[r.session_id] || 0) + 1;
+      }
     }
-    h += card('Runway', runBig, runSub, runAccent, 'fa-gas-pump');
+    const sessIds = Object.keys(sessMap);
+    const sessCnt = sessIds.length;
+    const totalTurns = sessIds.reduce((s, k) => s + sessMap[k], 0);
+    const avgTurns = sessCnt > 0 ? (totalTurns / sessCnt) : 0;
+    const turnsSub = sessCnt > 0
+      ? (fmtInt(totalTurns) + ' turns across ' + fmtInt(sessCnt) + ' sessions')
+      : 'No session data yet';
+    h += card('Avg turns / session', sessCnt > 0 ? avgTurns.toFixed(1) : '—', turnsSub, '#8B5CF6', 'fa-comments');
+
+    // Card 4: Cost per drawing (full pipeline cost / completed drawings)
+    const cpd = drawings > 0 ? g.cost / drawings : 0;
+    const cpdSub = drawings > 0
+      ? (money(g.cost) + ' total across ' + fmtInt(drawings) + ' drawings')
+      : 'Generate a drawing to see unit cost';
+    h += card('Cost per drawing', drawings > 0 ? money4(cpd) : '—', cpdSub, '#10B981', 'fa-receipt');
 
     h += '</div>';
     return h;
