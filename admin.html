@@ -365,6 +365,14 @@
           </div>
           <div class="hint" id="keyHint">Used for chat + image generation.</div>
 
+          <label class="field-label">OpenRouter Management key <span style="font-weight:400;color:var(--text-dim)">(optional — for balance monitoring)</span></label>
+          <div class="pass-wrap">
+            <input id="sMgmtKey" type="password" autocomplete="off" placeholder="sk-or-..." />
+            <button class="eye" type="button" data-eye="sMgmtKey" tabindex="-1"><i class="fas fa-eye"></i></button>
+          </div>
+          <div class="hint" id="mgmtKeyHint">Create one at openrouter.ai → Management Keys. Used only to fetch your credit balance.</div>
+          <button type="button" id="saveMgmtKeyBtn" class="btn hidden" style="margin-top:6px;font-size:0.7rem;padding:6px 14px;"><i class="fas fa-floppy-disk"></i> Save management key</button>
+
           <label class="field-label">Pipeline mode</label>
           <div class="mode-switch" id="modeSwitch" data-mode="1" role="tablist" aria-label="Pipeline mode">
             <div class="mode-thumb" aria-hidden="true"></div>
@@ -692,9 +700,11 @@
 
   // ── Settings: real key display (revealable) + dirty tracking ──
   const keyInput = document.getElementById('sKey');
+  const mgmtKeyInput = document.getElementById('sMgmtKey');
   const dirtyBadge = document.getElementById('dirtyBadge');
   let dirty = false;
   let loadedKeyValue = '';
+  let loadedMgmtKeyValue = '';
 
   function markDirty(){
     if(!dirty){ dirty = true; dirtyBadge.classList.remove('hidden'); }
@@ -734,6 +744,37 @@
     var el = document.getElementById(id);
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
+  });
+
+  // Management key: self-contained inline save (shows only when value differs).
+  const saveMgmtBtn = document.getElementById('saveMgmtKeyBtn');
+  function syncMgmtBtn(){
+    const changed = mgmtKeyInput.value !== loadedMgmtKeyValue;
+    saveMgmtBtn.classList.toggle('hidden', !changed);
+  }
+  mgmtKeyInput.addEventListener('input', syncMgmtBtn);
+  mgmtKeyInput.addEventListener('change', syncMgmtBtn);
+  saveMgmtBtn.addEventListener('click', async function(){
+    saveMgmtBtn.disabled = true;
+    const prev = saveMgmtBtn.innerHTML;
+    saveMgmtBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving…';
+    try{
+      await CMS.send('PUT', '/api/admin?resource=settings', {
+        openrouter_mgmt_key: mgmtKeyInput.value,
+      });
+      loadedMgmtKeyValue = mgmtKeyInput.value;
+      syncMgmtBtn();
+      CMS.toast('Management key saved');
+      const mgmtHint = document.getElementById('mgmtKeyHint');
+      if(loadedMgmtKeyValue){
+        mgmtHint.className = 'hint set';
+        mgmtHint.innerHTML = '<i class="fas fa-circle-check"></i> Management key configured — balance monitoring active.';
+      } else {
+        mgmtHint.className = 'hint';
+        mgmtHint.textContent = 'Create one at openrouter.ai → Management Keys. Used only to fetch your credit balance.';
+      }
+    }catch(e){ CMS.toast(e.message || 'Could not save', 'err'); }
+    finally{ saveMgmtBtn.disabled = false; saveMgmtBtn.innerHTML = prev; }
   });
 
   // ── Pipeline-mode sliding switch ──
@@ -804,6 +845,17 @@
         hint.className = 'hint';
         hint.textContent = 'No key set yet — paste your OpenRouter key.';
       }
+
+      const mgmtHint = document.getElementById('mgmtKeyHint');
+      loadedMgmtKeyValue = settings.openrouter_mgmt_key || '';
+      mgmtKeyInput.value = loadedMgmtKeyValue;
+      if(loadedMgmtKeyValue){
+        mgmtHint.className = 'hint set';
+        mgmtHint.innerHTML = '<i class="fas fa-circle-check"></i> Management key configured — balance monitoring active.';
+      } else {
+        mgmtHint.className = 'hint';
+        mgmtHint.textContent = 'Create one at openrouter.ai → Management Keys. Used only to fetch your credit balance.';
+      }
       clearDirty();
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
@@ -861,6 +913,7 @@
 
   // ── Dashboard state ──
   let anData = null, anTab = 'overview', otHidden = {}, anRange = '30';
+  let anBalance = null;   // live OpenRouter account credit (account-wide, not range-bound)
   let logSort = { key:'created_at', dir:'desc' }, logFilter = { model:'', mode:'', session:'' };
   const AN_TABS = [
     ['overview','Overview','fa-gauge-high'], ['models','Models','fa-robot'],
@@ -912,13 +965,40 @@
     return '<div class="schart">' + cols + '</div><div class="chart-axis">' + axis + '</div>' + lg;
   }
 
+  // OpenRouter account credit — a full-width card above the model spotlights.
+  // Account-wide (independent of the selected range), so it gets its own row.
+  // Low remaining credit turns the accent amber/red so it's easy to spot.
+  function balanceCard(){
+    const b = anBalance;
+    let big, sub, accent = '#0EA5E9';
+    if(b === null){ big = '<i class="fas fa-circle-notch fa-spin"></i>'; sub = 'Checking OpenRouter…'; }
+    else if(b.configured === false){ big = '—'; sub = 'No OpenRouter API key configured'; accent = '#94A3B8'; }
+    else if(b.error){ big = '—'; sub = 'Could not fetch balance: ' + esc(b.error); accent = '#EF4444'; }
+    else if(b.remaining == null && b.total_credits == null){
+      big = money(b.total_usage || 0) + ' used';
+      sub = 'No spend limit set' + (b.is_free_tier ? ' (free tier)' : '') + (b.label ? ' · key: ' + esc(b.label) : '');
+      if(b.needsMgmtKey) sub += ' · add a Management Key in Settings for exact credit balance';
+    } else {
+      const rem = Number(b.remaining) || 0;
+      big = money(rem);
+      sub = money(b.total_usage||0) + ' used' + (b.total_credits != null ? ' of ' + money(b.total_credits) + ' limit' : '');
+      if(b.is_free_tier) sub += ' (free tier)';
+      if(b.needsMgmtKey) sub += ' · add a Management Key in Settings for exact credit balance';
+      if(rem <= 5) accent = '#EF4444';
+      else if(rem <= 20) accent = '#F59E0B';
+    }
+    return '<div class="stat-grid"><div class="stat-card" style="border-top:3px solid ' + accent + '">' +
+      '<div class="sc-label"><i class="fas fa-wallet"></i> OpenRouter balance</div>' +
+      '<div class="sc-cost">' + big + '</div><div class="sc-sub">' + sub + '</div></div></div>';
+  }
+
   // ── Tab 1: Overview (range selector + headline cards + embedded AI summary) ──
   function rangeLabel(){ const o = RANGE_OPTS.find(x=>x[0]===String(anRange)); return o ? o[1] : (anRange + ' days'); }
   function tabOverview(){
     const g = grand(), perf = anData.performance || {};
     const bm = (anData.byModel || []);
     let h = '<div class="an-range" id="anRange">' + RANGE_OPTS.map(([v,l]) => '<button class="' + (String(anRange)===v?'active':'') + '" data-range="' + v + '"><i class="fas fa-calendar-day"></i>' + l + '</button>').join('') + '</div>';
-    if(!bm.length){ return h + emptyPanel('No usage recorded for ' + rangeLabel().toLowerCase() + '.'); }
+    if(!bm.length){ return h + balanceCard() + emptyPanel('No usage recorded for ' + rangeLabel().toLowerCase() + '.'); }
     const mostUsed = bm.slice().sort((a,b)=>b.calls-a.calls)[0];
     const dearest = bm.slice().sort((a,b)=>b.cost-a.cost)[0];
     const byMode = anData.byMode || [], totMode = byMode.reduce((s,x)=>s+x.calls,0), m2 = byMode.find(x=>x.mode==='2');
@@ -930,6 +1010,7 @@
     h += card('Total cost', money(g.cost), money4(g.calls?g.cost/g.calls:0) + ' avg/msg', '#22C55E', 'fa-sack-dollar');
     h += card('Models used', fmtInt(bm.length), perf.avgLatencyMs!=null ? ('avg ' + fmtMs(perf.avgLatencyMs) + ' latency') : 'latency: not recorded yet', '#A855F7', 'fa-robot');
     h += '</div>';
+    h += balanceCard();
     // Row 2: the two model spotlights, each spanning half the width.
     h += '<div class="stat-grid stat-grid-2">';
     h += card('Most used model', modelBadge(mostUsed.model), fmtInt(mostUsed.calls) + ' calls · ' + compact(mostUsed.tokens) + ' tok', colorFor(mostUsed.model), 'fa-fire');
@@ -1239,6 +1320,11 @@
       try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(_){ }
       const a = await CMS.get('/api/admin?resource=analytics&range=' + encodeURIComponent(anRange) + (tz ? '&tz=' + encodeURIComponent(tz) : ''));
       renderAnalytics(a);
+      // Balance is account-wide and fetched separately so a slow/failed OpenRouter
+      // call can't hold up (or break) the usage dashboard. Re-render once it lands.
+      CMS.get('/api/admin?resource=balance')
+        .then(b => { anBalance = b; if(anTab === 'overview') renderAnTab(); })
+        .catch(() => {});
     }catch(e){
       if(/Forbidden|authenticated/i.test(e.message)) return gateOut();
       anBody.innerHTML = '<div class="an-warn">' + esc(e.message) + '</div>';

@@ -9,10 +9,10 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { serviceClient, requireRole, readJsonBody, sendMailViaRelay, APP_URL } from './_lib.js';
 
-const SECRET_FIELDS = ['openrouter_api_key', 'mail_smtp_pass', 'mail_relay_secret'];
+const SECRET_FIELDS = ['openrouter_api_key', 'openrouter_mgmt_key', 'mail_smtp_pass', 'mail_relay_secret'];
 const GET_MASK_FIELDS = ['mail_smtp_pass', 'mail_relay_secret'];
 const SETTING_FIELDS = [
-  'openrouter_api_key', 'pipeline_mode', 'chat_model', 'convo_model', 'image_model',
+  'openrouter_api_key', 'openrouter_mgmt_key', 'pipeline_mode', 'chat_model', 'convo_model', 'image_model',
   'image_size', 'image_aspect_ratio',
   'sales_notification_email', 'mail_smtp_host', 'mail_smtp_port', 'mail_smtp_user',
   'mail_smtp_pass', 'mail_from_address', 'mail_relay_url', 'mail_relay_secret',
@@ -268,6 +268,73 @@ export default async function handler(req, res) {
         dailyByModel,
         messages: (rows || []).slice(0, msgLimit),
       });
+    }
+
+    // ── BALANCE ──
+    // Live OpenRouter account credit, fetched server-side so the secret API key
+    // never leaves the backend. Kept separate from the analytics aggregation so a
+    // slow/failed upstream call can't break the usage dashboard. Returns remaining
+    // credit (purchased − used) alongside the raw totals for the Overview card.
+    if (resource === 'balance') {
+      if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+      const { data: cfg, error: cfgErr } = await svc
+        .from('settings').select('openrouter_api_key, openrouter_mgmt_key').eq('id', 1).maybeSingle();
+      if (cfgErr) return res.status(500).json({ error: cfgErr.message });
+      const mgmtKey = (cfg?.openrouter_mgmt_key || '').trim();
+      const apiKey = (cfg?.openrouter_api_key || '').trim();
+      if (!mgmtKey && !apiKey) return res.status(200).json({ configured: false });
+
+      try {
+        // Management key → /api/v1/credits returns actual purchased credits vs used.
+        if (mgmtKey) {
+          const creditsResp = await fetch('https://openrouter.ai/api/v1/credits', {
+            headers: { 'Authorization': 'Bearer ' + mgmtKey },
+          });
+          if (creditsResp.ok) {
+            const cd = await creditsResp.json().catch(() => null);
+            const credits = Number(cd?.data?.total_credits) || 0;
+            const used = Number(cd?.data?.total_usage) || 0;
+            return res.status(200).json({
+              configured: true, total_credits: credits, total_usage: used, remaining: credits - used,
+            });
+          }
+          // If the management key failed, surface a clear error rather than
+          // silently falling through to the regular key (which can't show credits).
+          const err = await creditsResp.json().catch(() => ({}));
+          return res.status(200).json({
+            configured: true,
+            error: 'Management key error: ' + (err?.error?.message || ('HTTP ' + creditsResp.status)),
+            needsMgmtKey: false,
+          });
+        }
+
+        // No management key — fall back to /api/v1/key (any API key).
+        // Returns spend-limit info but NOT purchased credits.
+        const keyResp = await fetch('https://openrouter.ai/api/v1/key', {
+          headers: { 'Authorization': 'Bearer ' + apiKey },
+        });
+        const kRaw = await keyResp.text();
+        let kd; try { kd = JSON.parse(kRaw); } catch { kd = null; }
+        if (!keyResp.ok) {
+          return res.status(200).json({ configured: true, error: kd?.error?.message || ('HTTP ' + keyResp.status) });
+        }
+        const d = kd?.data || {};
+        const usage = Number(d.usage) || 0;
+        const limit = d.limit != null ? Number(d.limit) : null;
+        const limitRemaining = d.limit_remaining != null ? Number(d.limit_remaining) : null;
+        return res.status(200).json({
+          configured: true,
+          total_credits: limit,
+          total_usage: usage,
+          remaining: limitRemaining,
+          is_free_tier: !!d.is_free_tier,
+          label: d.label || null,
+          needsMgmtKey: true,
+        });
+      } catch (e) {
+        return res.status(200).json({ configured: true, error: e?.message || 'Could not reach OpenRouter.' });
+      }
     }
 
     // ── MAGIC LINK ──
